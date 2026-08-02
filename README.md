@@ -1,6 +1,6 @@
 # PyRit Config Builder
 
-**Universal configuration builder and lab guides for Microsoft [PyRIT](https://github.com/Azure/PyRIT) (Python Risk Identification Tool).**
+**Universal configuration builder and lab guides for Microsoft [PyRIT](https://microsoft.github.io/PyRIT/) (Python Risk Identification Tool).**
 
 This toolkit helps security testers, red teamers, and trainers attack **their own** AI / LLM applications in a controlled way — without writing everything from scratch.
 
