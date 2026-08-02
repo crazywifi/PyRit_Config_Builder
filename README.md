@@ -184,8 +184,8 @@ pyrit-lab-toolkit/
 
 ## Credits
 
-- [Microsoft PyRIT](https://github.com/Azure/PyRIT) — Python Risk Identification Tool  
-- [PyRIT documentation](https://microsoft.github.io/PyRIT/)  
+- [Microsoft PyRIT](https://microsoft.github.io/PyRIT/) — Python Risk Identification Tool  
+- [PyRIT documentation](https://microsoft.github.io/PyRIT/1.0.1/) 
 - This toolkit (Config Builder + lab guides) is a community training / productivity layer around official PyRIT APIs.
 
 ---
