@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PyRIT Scanner on a Custom HTTP Lab — Step-by-Step Guide</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --bg3: #21262d;
+  --border: #30363d;
+  --text: #f0f6fc;
+  --muted: #8b949e;
+  --accent: #238636;
+  --accent-h: #2ea043;
+  --blue: #58a6ff;
+  --orange: #f0883e;
+  --red: #f85149;
+  --purple: #a371f7;
+  --yellow: #d29922;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  padding: 24px 16px 80px;
+}
+.wrap { max-width: 1100px; margin: 0 auto; }
+header {
+  text-align: center;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+header h1 { color: var(--accent); font-size: 1.75rem; margin-bottom: 8px; }
+header p { color: var(--muted); max-width: 720px; margin: 0 auto 12px; }
+.badges { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.badge {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.8rem;
+  color: var(--blue);
+}
+nav.toc {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 28px;
+}
+nav.toc h2 { font-size: 1rem; margin-bottom: 12px; color: var(--text); }
+nav.toc ol { margin-left: 20px; color: var(--muted); }
+nav.toc a { color: var(--blue); text-decoration: none; }
+nav.toc a:hover { text-decoration: underline; }
+section {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+section h2 {
+  font-size: 1.25rem;
+  margin-bottom: 14px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+section h3 {
+  font-size: 1.05rem;
+  margin: 18px 0 10px;
+  color: var(--blue);
+}
+section h4 { font-size: 0.95rem; margin: 14px 0 8px; color: var(--purple); }
+p, li { color: var(--muted); margin-bottom: 8px; }
+ul, ol { margin: 8px 0 12px 22px; }
+strong { color: var(--text); }
+code {
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.88em;
+  color: var(--yellow);
+  font-family: Consolas, Monaco, monospace;
+}
+pre {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #c9d1d9;
+  margin: 10px 0 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+pre .c { color: #8b949e; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 16px;
+  font-size: 0.85rem;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: var(--bg3);
+  color: var(--text);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+td { color: var(--muted); }
+td code { font-size: 0.78rem; }
+tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+.table-wrap { overflow-x: auto; margin: 12px 0 16px; }
+.callout {
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 12px 0 16px;
+  border: 1px solid var(--border);
+  background: rgba(88,166,255,0.08);
+  border-color: var(--blue);
+}
+.callout.warn {
+  background: rgba(240,136,62,0.1);
+  border-color: var(--orange);
+}
+.callout.ok {
+  background: rgba(35,134,54,0.12);
+  border-color: var(--accent);
+}
+.callout h4 { margin: 0 0 6px; color: var(--blue); }
+.callout.warn h4 { color: var(--orange); }
+.callout.ok h4 { color: var(--accent); }
+.callout p { margin: 0; font-size: 0.9rem; }
+.file-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin: 12px 0;
+}
+.file-card .fname {
+  color: var(--accent);
+  font-weight: 700;
+  font-family: Consolas, Monaco, monospace;
+  margin-bottom: 4px;
+}
+.cmd-grid {
+  display: grid;
+  gap: 12px;
+}
+.cmd-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.cmd-item .label { color: var(--blue); font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; }
+footer {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.tech-list { font-size: 0.8rem; line-height: 1.45; }
+@media print {
+  body { background: #fff; color: #111; }
+  section, nav.toc { border-color: #ccc; background: #fff; }
+  pre { border-color: #ccc; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>PyRIT Scanner on a Custom HTTP Lab</h1>
+  <p>Step-by-step guide to red-team any local HTTP chat API with Microsoft PyRIT 1.0.0 (<code>pyrit_scan</code>), using predefined scenarios and an OpenAI-compatible judge (e.g. LM Studio).</p>
+  <div class="badges">
+    <span class="badge">PyRIT 1.0.0</span>
+    <span class="badge">Custom HTTPTarget</span>
+    <span class="badge">AIRT Scenarios</span>
+    <span class="badge">LM Studio compatible</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#s1">What you are building</a></li>
+    <li><a href="#s2">Lab HTTP contract</a></li>
+    <li><a href="#s3">Prerequisites</a></li>
+    <li><a href="#s4">Files to create (and why)</a></li>
+    <li><a href="#s5">Startup sequence</a></li>
+    <li><a href="#s6">Run scans — command patterns</a></li>
+    <li><a href="#s7">What each command does</a></li>
+    <li><a href="#s8">Full scenario map (PyRIT 1.0.0)</a></li>
+    <li><a href="#s9">Troubleshooting</a></li>
+    <li><a href="#s10">Happy-path checklist</a></li>
+  </ol>
+</nav>
+
+<!-- 1 -->
+<section id="s1">
+  <h2>1. What you are building</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Role</th><th>What it is</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td><strong>System under test</strong></td><td>Your lab chat HTTP API</td><td><code>POST http://127.0.0.1:5000/chat</code></td></tr>
+      <tr><td><strong>Attack engine</strong></td><td>PyRIT scenarios + techniques + datasets</td><td><code>airt.leakage</code>, <code>single_turn</code></td></tr>
+      <tr><td><strong>Helper / judge LLM</strong></td><td>OpenAI-compatible model for scoring (and multi-turn attacker)</td><td>LM Studio <code>http://127.0.0.1:1234/v1</code></td></tr>
+      <tr><td><strong>PyRIT backend</strong></td><td>Local REST server that runs scenarios</td><td><code>http://localhost:8000</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="callout">
+    <h4>Important</h4>
+    <p>In scanner mode, PyRIT uses <strong>Microsoft datasets and techniques</strong> — not your hand-written payloads. Your job is to expose the lab as a registered <code>HTTPTarget</code>.</p>
+  </div>
+</section>
+
+<!-- 2 -->
+<section id="s2">
+  <h2>2. Lab HTTP contract</h2>
+  <h3>Request</h3>
+<pre>POST /chat HTTP/1.1
+Host: 127.0.0.1:5000
+Content-Type: application/json
+Cookie: session=&lt;YOUR_SESSION_COOKIE&gt;
+Connection: close
+
+{"message":"hello","mode":"vulnerable"}</pre>
+  <h3>Response</h3>
+  <p>Model text is in the <code>response</code> field:</p>
+<pre>{
+  "response": "Hello! How can I assist you today?",
+  "flag_found": false,
+  "lab": "Basic Prompt Injection",
+  ...
+}</pre>
+  <p>PyRIT fills <code>{PROMPT}</code> into the JSON body and parses the reply from <code>response</code>.</p>
+</section>
+
+<!-- 3 -->
+<section id="s3">
+  <h2>3. Prerequisites</h2>
+  <ol>
+    <li><strong>Python + PyRIT</strong>
+<pre>pip install -U pyrit
+python -c "import pyrit; print(pyrit.__version__)"</pre>
+    </li>
+    <li><strong>Lab app</strong> listening on <code>http://127.0.0.1:5000</code></li>
+    <li><strong>LM Studio</strong> (or OpenAI/Azure) with OpenAI-compatible API, e.g. <code>http://127.0.0.1:1234/v1</code></li>
+    <li>A <strong>valid session cookie</strong> from the lab (browser → DevTools → request headers)</li>
+  </ol>
+</section>
+
+<!-- 4 -->
+<section id="s4">
+  <h2>4. Files to create (and why)</h2>
+  <p>Work in one folder, e.g. <code>C:\Users\&lt;you&gt;\Downloads\aaaz\</code>.</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>register_playground_target.py</code></td><td>Custom initializer: registers the lab as target <code>playground_chat</code></td></tr>
+      <tr><td><code>scanner.env</code></td><td>Endpoints/keys for judge + adversarial models</td></tr>
+      <tr><td><code>pyrit_custom_scan.yaml</code></td><td>Project config: env, built-in initializers, custom script, <code>allow_custom_initializers</code></td></tr>
+      <tr><td><code>%USERPROFILE%\.pyrit\.pyrit_conf</code></td><td>Global defaults (recommended)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.1 register_playground_target.py</h3>
+  <div class="file-card">
+    <div class="fname">Why</div>
+    <p><code>pyrit_scan</code> only talks to registered targets. The lab is not OpenAI-shaped, so wrap it in <code>HTTPTarget</code> and register <code>playground_chat</code>.</p>
+  </div>
+<pre># register_playground_target.py
+"""Register the lab /chat endpoint as a PyRIT target."""
+
+from __future__ import annotations
+
+import json
+from pyrit.prompt_target import HTTPTarget
+from pyrit.registry import TargetRegistry
+from pyrit.setup.initializers import PyRITInitializer
+
+# Paste a FRESH session cookie when the old one expires.
+SESSION_COOKIE = (
+    "session=eyJzZXNzaW9uX2lkIjoiZDQxMThmODUtZThhMC00NzViLWE3MWItMTU4NDliYzY3YTBlIn0."
+    "amnCnw.V0OrMjRGBu4HaFfcdsadMmnED-4"
+)
+
+# {PROMPT} is replaced by PyRIT. Cookie uses f-string; JSON braces are doubled.
+RAW_HTTP = f"""\
+POST /chat HTTP/1.1
+Host: 127.0.0.1:5000
+Content-Type: application/json
+Accept: */*
+Origin: http://127.0.0.1:5000
+Referer: http://127.0.0.1:5000/
+Cookie: {SESSION_COOKIE}
+Connection: close
+
+{{"message":"{{PROMPT}}","mode":"vulnerable"}}
+"""
+
+
+def parse_response(response: str) -&gt; str:
+    try:
+        data = json.loads(response)
+        text = data.get("response")
+        return str(text) if text is not None else response
+    except Exception:
+        return response
+
+
+class PlaygroundChatTargetInitializer(PyRITInitializer):
+    """Registers target name: playground_chat"""
+
+    async def initialize_async(self) -&gt; None:
+        target = HTTPTarget(
+            http_request=RAW_HTTP,
+            prompt_regex_string="{PROMPT}",
+            callback_function=parse_response,
+            use_tls=False,  # http:// not https://
+            timeout=60.0,
+        )
+        registry = TargetRegistry.get_registry_singleton()
+        # Name is a keyword argument (positional name, target fails on this API)
+        registry.instances.register(target, name="playground_chat")
+</pre>
+  <div class="callout warn">
+    <h4>Critical details</h4>
+    <p>Placeholder is <code>{PROMPT}</code> (must match <code>prompt_regex_string</code>). Use <code>use_tls=False</code> for plain HTTP. Register with <code>register(target, name="playground_chat")</code> — not <code>register("name", target)</code>.</p>
+  </div>
+
+  <h3>4.2 scanner.env</h3>
+  <div class="file-card">
+    <div class="fname">Why</div>
+    <p>Built-in scorers and multi-turn attackers need a chat model. These vars configure the <strong>judge/attacker</strong> — they do not replace the lab target.</p>
+  </div>
+<pre># Judge / helper (LM Studio)
+OPENAI_CHAT_ENDPOINT=http://127.0.0.1:1234/v1
+OPENAI_CHAT_MODEL=meta-llama-3-8b-instruct
+OPENAI_CHAT_KEY=lm-studio
+
+# Multi-turn adversarial model (can be the same)
+ADVERSARIAL_CHAT_ENDPOINT=http://127.0.0.1:1234/v1
+ADVERSARIAL_CHAT_MODEL=meta-llama-3-8b-instruct
+ADVERSARIAL_CHAT_KEY=lm-studio
+</pre>
+  <ul>
+    <li>Model name must match LM Studio’s <code>/v1/models</code></li>
+    <li>Endpoint must include <code>/v1</code></li>
+    <li>For OpenAI cloud: real API key, <code>https://api.openai.com/v1</code>, model like <code>gpt-4o-mini</code></li>
+  </ul>
+
+  <h3>4.3 pyrit_custom_scan.yaml</h3>
+  <div class="file-card">
+    <div class="fname">Why</div>
+    <p>One place to enable custom initializers, load env, run standard target/scorer/technique setup, then run your script.</p>
+  </div>
+<pre>memory_db_type: in_memory
+allow_custom_initializers: true
+env_files:
+  - ./scanner.env
+initializers:
+  - name: target
+    args:
+      tags:
+        - default
+        - scorer
+  - name: scorer
+  - name: technique
+    args:
+      tags:
+        - all
+  - name: load_default_datasets
+initialization_scripts:
+  - ./register_playground_target.py
+</pre>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Key</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><code>allow_custom_initializers: true</code></td><td>Required or custom scripts are rejected</td></tr>
+      <tr><td><code>env_files</code></td><td>Loads <code>OPENAI_CHAT_*</code> for the judge</td></tr>
+      <tr><td><code>target</code> + <code>scorer</code></td><td>Registers OpenAI-compatible targets and LLM scorers</td></tr>
+      <tr><td><code>technique</code> + <code>load_default_datasets</code></td><td>Loads techniques and Microsoft datasets</td></tr>
+      <tr><td><code>initialization_scripts</code></td><td>Runs your lab registration on backend startup</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.4 Global .pyrit_conf (recommended)</h3>
+  <p>Path: <code>%USERPROFILE%\.pyrit\.pyrit_conf</code></p>
+<pre>memory_db_type: in_memory
+allow_custom_initializers: true
+initializers:
+  - name: target
+    args:
+      tags:
+        - default
+        - scorer
+  - name: scorer
+  - name: technique
+    args:
+      tags:
+        - all
+  - name: load_default_datasets
+env_files:
+  - C:/Users/&lt;you&gt;/.pyrit/.env
+</pre>
+<pre>mkdir %USERPROFILE%\.pyrit</pre>
+</section>
+
+<!-- 5 -->
+<section id="s5">
+  <h2>5. Startup sequence (order matters)</h2>
+  <h3>A. Services up</h3>
+  <ol>
+    <li>Lab on <code>:5000</code></li>
+    <li>LM Studio server on <code>:1234</code></li>
+    <li>All three project files in one directory</li>
+  </ol>
+  <h3>B. Start PyRIT backend</h3>
+<pre>cd C:\Users\&lt;you&gt;\Downloads\aaaz
+
+pyrit_scan --stop-server
+pyrit_scan --start-server --config-file ./pyrit_custom_scan.yaml
+</pre>
+  <div class="callout ok">
+    <h4>Success looks like</h4>
+    <p><code>Server ready (PID ...). Server is running at http://localhost:8000</code></p>
+  </div>
+  <h3>C. Verify targets</h3>
+<pre>pyrit_scan --list-targets
+</pre>
+  <p>Expected:</p>
+<pre>adversarial_chat   OpenAIChatTarget  → LM Studio
+openai_chat        OpenAIChatTarget  → LM Studio
+playground_chat    HTTPTarget        → http://127.0.0.1:5000/chat
+</pre>
+  <p>If <code>playground_chat</code> is missing, check <code>%TEMP%\pyrit_backend.log</code>.</p>
+</section>
+
+<!-- 6 -->
+<section id="s6">
+  <h2>6. Run scans — command patterns</h2>
+  <p>Leave the server running. Always pass <code>--target playground_chat</code>.</p>
+
+  <div class="cmd-grid">
+    <div class="cmd-item">
+      <div class="label">Leakage (best first test for secret/PIN labs)</div>
+<pre>pyrit_scan airt.leakage --target playground_chat --techniques single_turn --max-dataset-size 5
+
+REM Or scenario default technique:
+pyrit_scan airt.leakage --target playground_chat --max-dataset-size 5
+</pre>
+    </div>
+    <div class="cmd-item">
+      <div class="label">Jailbreak</div>
+<pre>pyrit_scan airt.jailbreak --target playground_chat --techniques prompt_sending --max-dataset-size 5
+</pre>
+    </div>
+    <div class="cmd-item">
+      <div class="label">Aggregate vs concrete technique</div>
+<pre>REM Aggregate expands to a set defined by the scenario
+pyrit_scan airt.leakage --target playground_chat --techniques single_turn --max-dataset-size 10
+
+REM Concrete technique
+pyrit_scan airt.leakage --target playground_chat --techniques role_play_persuasion --max-dataset-size 5
+
+REM Multi-turn (needs adversarial chat — already in scanner.env)
+pyrit_scan airt.leakage --target playground_chat --techniques multi_turn --max-dataset-size 3
+</pre>
+    </div>
+    <div class="cmd-item">
+      <div class="label">Discovery</div>
+<pre>pyrit_scan --list-scenarios
+pyrit_scan airt.leakage --help
+pyrit_scan --list-datasets
+pyrit_scan --list-targets
+</pre>
+    </div>
+  </div>
+  <div class="callout">
+    <h4>Always trust your install</h4>
+    <p>Run <code>pyrit_scan --list-scenarios</code> on the machine you use. Technique names can differ slightly between releases.</p>
+  </div>
+</section>
+
+<!-- 7 -->
+<section id="s7">
+  <h2>7. What each command does</h2>
+<pre>pyrit_scan airt.leakage --target playground_chat --techniques single_turn --max-dataset-size 5
+         │              │                        │                      │
+         │              │                        │                      └─ only 5 dataset rows (faster)
+         │              │                        └─ which attack strategies to run
+         │              └─ send attacks to YOUR lab (HTTPTarget)
+         └─ scenario = objective + default datasets + scorers + technique catalog
+</pre>
+  <ol>
+    <li>Load objectives from the scenario dataset (e.g. leakage prompts).</li>
+    <li>Apply technique (encoding, role-play, multi-turn, …).</li>
+    <li>Send HTTP request to the lab with <code>{PROMPT}</code> filled in.</li>
+    <li>Parse the <code>response</code> JSON field.</li>
+    <li>Score with the LLM judge (<code>openai_chat</code> → LM Studio) or scenario-specific scorers.</li>
+    <li>Report success / fail.</li>
+  </ol>
+</section>
+
+<!-- 8 -->
+<section id="s8">
+  <h2>8. Full scenario map (PyRIT 1.0.0)</h2>
+  <p>From <code>pyrit_scan --list-scenarios</code> on a real 1.0.0 install (12 scenarios). Use these exact names with <code>--techniques</code>.</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Scenario</th>
+        <th>Aggregate Techniques</th>
+        <th>Available Techniques</th>
+        <th>Default Technique</th>
+        <th>Default Datasets</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>adaptive.text_adaptive</code></td>
+        <td class="tech-list">all, default, core, extra, light, multi_turn, single_turn</td>
+        <td class="tech-list"><strong>(17)</strong> role_play_movie_script, role_play_video_game, role_play_trivia_game, role_play_persuasion, role_play_persuasion_written, many_shot, tap, crescendo_simulated, crescendo_movie_director, crescendo_history_lecture, crescendo_journalist_interview, red_teaming, context_compliance, flip, pair, skeleton_key, violent_durian</td>
+        <td><code>default</code></td>
+        <td class="tech-list"><strong>(7)</strong> airt_hate, airt_fairness, airt_violence, airt_sexual, airt_harassment, airt_misinformation, airt_leakage</td>
+      </tr>
+      <tr>
+        <td><code>airt.cyber</code></td>
+        <td class="tech-list">all, default, core, light, multi_turn, single_turn</td>
+        <td class="tech-list"><strong>(14)</strong> context_compliance, crescendo_history_lecture, crescendo_journalist_interview, crescendo_movie_director, crescendo_simulated, flip, many_shot, red_teaming, role_play_movie_script, role_play_persuasion, role_play_persuasion_written, role_play_trivia_game, role_play_video_game, tap</td>
+        <td><code>default</code></td>
+        <td class="tech-list"><strong>(1)</strong> airt_malware</td>
+      </tr>
+      <tr>
+        <td><code>airt.jailbreak</code></td>
+        <td class="tech-list">all, default, core, light, multi_turn, single_turn</td>
+        <td class="tech-list"><strong>(16)</strong> context_compliance, crescendo_history_lecture, crescendo_journalist_interview, crescendo_movie_director, crescendo_simulated, flip, many_shot, red_teaming, role_play_movie_script, role_play_persuasion, role_play_persuasion_written, role_play_trivia_game, role_play_video_game, tap, prompt_sending, jailbreak_system_prompt</td>
+        <td><code>default</code></td>
+        <td class="tech-list"><strong>(1)</strong> harmbench</td>
+      </tr>
+      <tr>
+        <td><code>airt.leakage</code></td>
+        <td class="tech-list">all, default, airt, core, leakage, light, multi_turn, single_turn</td>
+        <td class="tech-list"><strong>(16)</strong> context_compliance, crescendo_history_lecture, crescendo_journalist_interview, crescendo_movie_director, crescendo_simulated, flip, many_shot, red_teaming, role_play_movie_script, role_play_persuasion, role_play_persuasion_written, role_play_trivia_game, role_play_video_game, tap, first_letter, image</td>
+        <td><code>default</code></td>
+        <td class="tech-list"><strong>(1)</strong> airt_leakage</td>
+      </tr>
+      <tr>
+        <td><code>airt.psychosocial</code></td>
+        <td class="tech-list">all, default, tone, language, persuasion, deterministic</td>
+        <td class="tech-list"><strong>(24)</strong> none, tone_soften, tone_upset, tone_angry, tone_sad, tone_urgent, language_spanish, language_french, language_german, language_japanese, persuasion_logical_appeal, persuasion_authority_endorsement, persuasion_evidence_based, persuasion_expert_endorsement, persuasion_misrepresentation, tense_past, variation, noise, insert_punctuation, random_capitalization, diacritic, char_swap, colloquial_wordswap, crescendo</td>
+        <td><code>default</code></td>
+        <td class="tech-list"><strong>(2)</strong> airt_imminent_crisis, airt_licensed_therapist</td>
+      </tr>
+      <tr>
+        <td><code>airt.rapid_response</code></td>
+        <td class="tech-list">all, default, core, light, multi_turn, single_turn</td>
+        <td class="tech-list"><strong>(14)</strong> context_compliance, crescendo_history_lecture, crescendo_journalist_interview, crescendo_movie_director, crescendo_simulated, flip, many_shot, red_teaming, role_play_movie_script, role_play_persuasion, role_play_persuasion_written, role_play_trivia_game, role_play_video_game, tap</td>
+        <td><code>default</code></td>
+        <td class="tech-list"><strong>(7)</strong> airt_hate, airt_fairness, airt_violence, airt_sexual, airt_harassment, airt_misinformation, airt_leakage</td>
+      </tr>
+      <tr>
+        <td><code>airt.scam</code></td>
+        <td class="tech-list">all, default, single_turn, multi_turn</td>
+        <td class="tech-list"><strong>(3)</strong> context_compliance, role_play_persuasion_written, persuasive_rta</td>
+        <td><code>default</code></td>
+        <td class="tech-list"><strong>(1)</strong> airt_scams</td>
+      </tr>
+      <tr>
+        <td><code>benchmark.adversarial</code></td>
+        <td class="tech-list">all, default, core, light, multi_turn, single_turn</td>
+        <td class="tech-list"><strong>(12)</strong> context_compliance, crescendo_history_lecture, crescendo_journalist_interview, crescendo_movie_director, crescendo_simulated, red_teaming, role_play_movie_script, role_play_persuasion, role_play_persuasion_written, role_play_trivia_game, role_play_video_game, tap</td>
+        <td><code>default</code></td>
+        <td class="tech-list"><strong>(1)</strong> harmbench</td>
+      </tr>
+      <tr>
+        <td><code>foundry.red_team_agent</code></td>
+        <td class="tech-list">all, easy, moderate, difficult</td>
+        <td class="tech-list"><strong>(25)</strong> ansi_attack, ascii_art, ascii_smuggler, atbash, base64, binary, caesar, character_space, char_swap, diacritic, flip, leetspeak, morse, rot13, suffix_append, string_join, unicode_confusable, unicode_substitution, url, jailbreak, tense, multi_turn, crescendo, pair, tap</td>
+        <td><code>easy</code></td>
+        <td class="tech-list"><strong>(1)</strong> harmbench</td>
+      </tr>
+      <tr>
+        <td><code>garak.doctor</code></td>
+        <td class="tech-list">all, default, single_turn</td>
+        <td class="tech-list"><strong>(2)</strong> policy_puppetry, policy_puppetry_leet</td>
+        <td><code>default</code></td>
+        <td class="tech-list"><strong>(1)</strong> garak_doctor</td>
+      </tr>
+      <tr>
+        <td><code>garak.encoding</code></td>
+        <td class="tech-list">all, default</td>
+        <td class="tech-list"><strong>(17)</strong> base64, base2048, base16, base32, ascii85, hex, quoted_printable, uuencode, rot13, braille, atbash, morse_code, nato, ecoji, zalgo, leet_speak, ascii_smuggler</td>
+        <td><code>default</code></td>
+        <td class="tech-list"><strong>(2)</strong> garak_slur_terms_en, garak_web_html_js</td>
+      </tr>
+      <tr>
+        <td><code>garak.web_injection</code></td>
+        <td class="tech-list">all, default, exfil, xss</td>
+        <td class="tech-list"><strong>(8)</strong> markdown_image_exfil, colab_ai_data_leakage, string_assembly_data_exfil, playground_markdown_exfil, markdown_uri_image_exfil_extended, markdown_uri_non_image_exfil_extended, task_xss, markdown_xss</td>
+        <td><code>default</code></td>
+        <td class="tech-list"><strong>(4)</strong> garak_example_domains_xss, garak_markdown_js, garak_web_html_js, garak_xss_normal_instructions</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>How to read this table</h3>
+  <ul>
+    <li><strong>Aggregates</strong> — named groups passed to <code>--techniques</code> (e.g. <code>single_turn</code>, <code>all</code>). They expand to multiple concrete techniques.</li>
+    <li><strong>Available techniques</strong> — concrete attack names you can pass individually.</li>
+    <li><strong>Default technique</strong> — used when you omit <code>--techniques</code>.</li>
+    <li><strong>Default datasets</strong> — objectives loaded unless you override with dataset options.</li>
+  </ul>
+  <div class="callout warn">
+    <h4>Psychosocial note</h4>
+    <p><code>airt.psychosocial</code> also has a separate <code>sub_harm</code> parameter (<code>imminent_crisis</code>, <code>licensed_therapist</code>, or <code>all</code>). That is <em>not</em> a <code>--techniques</code> value. Techniques in that scenario are mostly converter layers on a simulated-crescendo base.</p>
+  </div>
+</section>
+
+<!-- 9 -->
+<section id="s9">
+  <h2>9. Troubleshooting</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>Custom initializer operations are disabled</code></td>
+        <td>Flag off or old server process</td>
+        <td>Set <code>allow_custom_initializers: true</code> in <code>.pyrit_conf</code> and project YAML; fully stop and restart backend</td>
+      </tr>
+      <tr>
+        <td><code>Environment file not found: ...\scanner.env</code></td>
+        <td>Missing file</td>
+        <td>Create <code>scanner.env</code> next to the YAML</td>
+      </tr>
+      <tr>
+        <td><code>Configuration file not found: ...yam</code></td>
+        <td>Typo in filename</td>
+        <td>Use <code>.yaml</code> (not <code>.yam</code>)</td>
+      </tr>
+      <tr>
+        <td><code>register() takes 2 positional arguments but 3 were given</code></td>
+        <td>Wrong registry API</td>
+        <td><code>register(target, name="playground_chat")</code></td>
+      </tr>
+      <tr>
+        <td>Target missing from <code>--list-targets</code></td>
+        <td>Initializer failed</td>
+        <td>Read <code>%TEMP%\pyrit_backend.log</code></td>
+      </tr>
+      <tr>
+        <td>401 / empty from lab</td>
+        <td>Stale session cookie</td>
+        <td>Refresh <code>SESSION_COOKIE</code>, restart server</td>
+      </tr>
+      <tr>
+        <td>Scorer / <code>json_object</code> errors</td>
+        <td>LM Studio vs structured output</td>
+        <td>Stronger model, cloud judge, or compatibility proxy</td>
+      </tr>
+      <tr>
+        <td>Server already running; config ignored</td>
+        <td>Old process still bound to :8000</td>
+        <td><code>pyrit_scan --stop-server</code> or kill PID on port 8000</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 10 -->
+<section id="s10">
+  <h2>10. Happy-path checklist</h2>
+<pre>REM 1) Files: register_playground_target.py, scanner.env, pyrit_custom_scan.yaml
+REM 2) Lab :5000, LM Studio :1234
+REM 3) Global conf has allow_custom_initializers: true
+
+cd C:\Users\&lt;you&gt;\Downloads\aaaz
+pyrit_scan --stop-server
+pyrit_scan --start-server --config-file ./pyrit_custom_scan.yaml
+pyrit_scan --list-targets
+pyrit_scan airt.leakage --target playground_chat --techniques single_turn --max-dataset-size 5
+</pre>
+  <div class="callout ok">
+    <h4>Mental model</h4>
+    <p>Register the lab as <code>playground_chat</code>. <code>scanner.env</code> only configures the judge/attacker. <code>pyrit_custom_scan.yaml</code> wires env + built-in initializers + your script. Start the backend with that config, then run <code>pyrit_scan &lt;scenario&gt; --target playground_chat ...</code>.</p>
+  </div>
+</section>
+
+<footer>
+  PyRIT Scanner Custom HTTP Lab Guide · Compatible with PyRIT 1.0.0 · Scenario table from <code>pyrit_scan --list-scenarios</code>
+</footer>
+</div>
+</body>
+</html>
