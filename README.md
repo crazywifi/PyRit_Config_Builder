@@ -1,6 +1,18 @@
 # PyRit Config Builder
 
+**URLs:**
+
+**PyRit Builder:** https://crazywifi.github.io/PyRit_Config_Builder/pyrit_config_builder_all_in_one.html
+
+**PyRit Guide:** https://crazywifi.github.io/PyRit_Config_Builder/PyRIT_Guide.html
+
+**PyRit Custom Script Guide:** https://crazywifi.github.io/PyRit_Config_Builder/pyrit_custom_script_builder_lab_guide.html
+
+**PyRit Scanner Custom Guide:** https://crazywifi.github.io/PyRit_Config_Builder/pyrit_scanner_custom_http_lab_guide.html
+
+---
 **Universal configuration builder and lab guides for Microsoft [PyRIT](https://microsoft.github.io/PyRIT/) (Python Risk Identification Tool).**
+
 
 This toolkit helps security testers, red teamers, and trainers attack **their own** AI / LLM applications in a controlled way — without writing everything from scratch.
 
