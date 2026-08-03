@@ -3796,101 +3796,116 @@ def get_scorer():
             if (attackMode === 'llm' && !useLocalLLMJudge) {
                 code += `
 # ============================================
-# Verbose Per-Turn Output
+# Live Attack Monitor
 # ============================================
-async def print_verbose_results(result, objective: str) -> None:
-    from pyrit.models.results.attack_result import ConversationType
-    # ANSI color codes — work in Windows Terminal and modern PowerShell
-    R  = "\\033[0m"    # reset
-    B  = "\\033[1m"    # bold
-    CY = "\\033[1;96m" # cyan bold  — section headers
-    YL = "\\033[93m"   # yellow     — "Sending to X" labels
-    BL = "\\033[94m"   # blue       — attacker LLM content
-    GR = "\\033[1;92m" # green bold — success / target response label
-    RD = "\\033[1;91m" # red bold   — failure
-    DM = "\\033[2m"    # dim        — dividers / rationale
-    WH = "\\033[97m"   # white      — response content
+async def run_with_live_output(attack, objective: str):
+    """Run attack and stream each step to terminal as it happens."""
+    from datetime import datetime, timezone
+    R  = "\\033[0m"
+    B  = "\\033[1m"
+    CY = "\\033[1;96m"
+    YL = "\\033[93m"
+    BL = "\\033[94m"
+    GR = "\\033[1;92m"
+    DM = "\\033[2m"
+    WH = "\\033[97m"
     SEP = "=" * 60
     DIV = "-" * 40
-    print(f"\\n{CY}{SEP}{R}")
-    print(f"{CY}{B}  OBJECTIVE:{R} {objective}")
-    print(f"{CY}{SEP}{R}")
-    try:
-        memory = CentralMemory.get_memory_instance()
-        target_pieces = sorted(
-            memory.get_message_pieces(conversation_id=result.conversation_id),
-            key=lambda p: p.sequence,
-        )
-        adv_conv_id = next(
-            (ref.conversation_id for ref in getattr(result, "related_conversations", [])
-             if ref.conversation_type == ConversationType.ADVERSARIAL),
-            None,
-        )
-        adv_pieces = sorted(
-            memory.get_message_pieces(conversation_id=adv_conv_id) if adv_conv_id else [],
-            key=lambda p: p.sequence,
-        )
-        system_piece = next((p for p in adv_pieces if p.role == "system"), None)
-        if system_piece:
-            # Truncate the verbose system prompt — only show first 300 chars
-            preview = system_piece.original_value[:300].replace("\\n", " ").strip()
-            if len(system_piece.original_value) > 300:
-                preview += "..."
-            print(f"\\n{DM}[SYSTEM] Attacker instructions loaded: {preview}{R}")
-        # Build ordered pairs by index, not sequence number (adv seq starts 1 higher due to system msg)
-        def ordered_pairs(pieces):
-            seqs = sorted(set(p.sequence for p in pieces if p.role in ("user", "assistant")))
-            return [(next((p for p in pieces if p.sequence == s and p.role == "user"), None),
-                     next((p for p in pieces if p.sequence == s and p.role == "assistant"), None))
-                    for s in seqs]
-        tgt_turns = ordered_pairs(target_pieces)
-        adv_turns = ordered_pairs(adv_pieces)
-        total = result.executed_turns or max(len(tgt_turns), len(adv_turns))
-        for i, ((tgt_user, tgt_asst), (adv_user, adv_asst)) in enumerate(zip(tgt_turns, adv_turns), 1):
-            print(f"\\n{CY}{SEP}{R}")
-            print(f"{CY}{B}  TURN {i} / {total}{R}")
-            print(f"{CY}{SEP}{R}")
-            if adv_user:
-                print(f"\\n{YL}>>> Sending to Attacker LLM:{R}")
-                print(f"{DM}{DIV}{R}")
-                print(f"{BL}{adv_user.original_value}{R}")
-            if adv_asst:
-                print(f"\\n{YL}<<< Attacker LLM response (attack prompt):{R}")
-                print(f"{DM}{DIV}{R}")
-                print(f"{WH}{B}{adv_asst.original_value}{R}")
-            sent = (tgt_user.converted_value if tgt_user and tgt_user.converted_value
-                    and tgt_user.converted_value != tgt_user.original_value
-                    else (adv_asst.original_value if adv_asst else None))
-            label = ">>> Sending to Target (after converters):" if (tgt_user and tgt_user.converted_value
-                    and tgt_user.converted_value != tgt_user.original_value) else ">>> Sending to Target:"
-            print(f"\\n{YL}{label}{R}")
-            if sent:
-                print(f"{DM}{DIV}{R}")
-                print(f"{WH}{sent}{R}")
-            if tgt_asst:
-                print(f"\\n{GR}<<< Target response:{R}")
-                print(f"{DM}{DIV}{R}")
-                print(f"{WH}{tgt_asst.original_value}{R}")
-            if result.last_score and i == total:
-                score_val = result.last_score.get_value()
-                vc = GR if score_val else RD
-                verdict = "SUCCESS" if score_val else "NOT ACHIEVED"
-                print(f"\\n{YL}>>> Sending to Judge LLM:{R}")
-                print(f"{vc}{B}    Judge verdict: {verdict}{R}")
-                rationale = getattr(result.last_score, "score_rationale", None)
-                if rationale:
-                    print(f"{DM}    Reason: {rationale}{R}")
-    except Exception as e:
-        print(f"\\n{RD}[Turn-by-turn display unavailable: {e}]{R}")
-        if getattr(result, "last_response", None):
-            print(f"Last response: {result.last_response.original_value}")
-    print(f"\\n{CY}{SEP}{R}")
+    memory = CentralMemory.get_memory_instance()
+    start_time = datetime.now(tz=timezone.utc)
+    state = {"seen": set(), "adv_id": None, "turn": 0}
+
+    async def poll():
+        try:
+            pieces = sorted(
+                [p for p in memory.get_message_pieces(sent_after=start_time)
+                 if str(p.id) not in state["seen"]],
+                key=lambda p: p.timestamp,
+            )
+            for p in pieces:
+                state["seen"].add(str(p.id))
+                if p.role == "system":
+                    state["adv_id"] = str(p.conversation_id)
+                    print(f"\\n{DM}[SYSTEM] Attacker instructions loaded{R}", flush=True)
+                    continue
+                if state["adv_id"] is None:
+                    state["adv_id"] = str(p.conversation_id)
+                cid = str(p.conversation_id)
+                if cid == state["adv_id"]:
+                    if p.role == "user":
+                        state["turn"] += 1
+                        print(f"\\n{CY}{SEP}{R}", flush=True)
+                        print(f"{CY}{B}  TURN {state['turn']}{R}", flush=True)
+                        print(f"{CY}{SEP}{R}", flush=True)
+                        print(f"\\n{YL}>>> Sending to Attacker LLM:{R}", flush=True)
+                        print(f"{DM}{DIV}{R}", flush=True)
+                        print(f"{BL}{p.original_value}{R}", flush=True)
+                    elif p.role == "assistant":
+                        print(f"\\n{YL}<<< Attacker LLM response (attack prompt):{R}", flush=True)
+                        print(f"{DM}{DIV}{R}", flush=True)
+                        print(f"{WH}{B}{p.original_value}{R}", flush=True)
+                        print(f"\\n{YL}>>> Sending above prompt to Target...{R}", flush=True)
+                else:
+                    if p.role == "assistant":
+                        print(f"\\n{GR}<<< Target response:{R}", flush=True)
+                        print(f"{DM}{DIV}{R}", flush=True)
+                        print(f"{WH}{p.original_value}{R}", flush=True)
+        except Exception:
+            pass
+
+    attack_task = asyncio.create_task(attack.execute_async(objective=objective))
+    while not attack_task.done():
+        await poll()
+        await asyncio.sleep(0.3)
+    await asyncio.sleep(0.1)
+    await poll()
+    if attack_task.cancelled():
+        raise asyncio.CancelledError()
+    exc = attack_task.exception()
+    if exc:
+        raise exc
+    return attack_task.result()
+
+async def print_verbose_results(result, objective: str) -> None:
+    """Print final outcome summary with turn guidance."""
+    R  = "\\033[0m"
+    B  = "\\033[1m"
+    CY = "\\033[1;96m"
+    YL = "\\033[93m"
+    GR = "\\033[1;92m"
+    RD = "\\033[1;91m"
+    DM = "\\033[2m"
+    WH = "\\033[97m"
+    SEP = "=" * 60
     outcome = result.outcome.value.upper() if hasattr(result.outcome, "value") else str(result.outcome)
     oc = GR if "SUCCESS" in outcome else RD
-    print(f"{oc}{B}  FINAL OUTCOME: {outcome}{R}")
-    print(f"  Turns executed: {result.executed_turns}")
-    if result.outcome_reason:
-        print(f"{DM}  Reason: {result.outcome_reason}{R}")
+    turns = result.executed_turns
+    print(f"\\n{CY}{SEP}{R}")
+    print(f"{oc}{B}  FINAL OUTCOME : {outcome}{R}")
+    print(f"  Objective    : {objective}")
+    print(f"  Turns run    : {turns}")
+    if result.last_score:
+        score_val = result.last_score.get_value()
+        vc = GR if score_val else RD
+        print(f"  Judge verdict: {vc}{'SUCCESS' if score_val else 'NOT ACHIEVED'}{R}")
+        rationale = getattr(result.last_score, "score_rationale", None)
+        if rationale:
+            print(f"{DM}  Reasoning    : {rationale}{R}")
+    if result.last_response:
+        print(f"\\n{WH}  Last target response (turn {turns}):{R}")
+        print(f"{DM}  {'─'*40}{R}")
+        lv = result.last_response.original_value or ""
+        print(f"  {lv}")
+    if "SUCCESS" not in outcome:
+        print(f"\\n{YL}  WHAT TO CHECK:{R}")
+        print(f"  1. Scroll up and review each TURN's 'Target response'.")
+        print(f"  2. If the target did reveal info but judge said NOT ACHIEVED")
+        print(f"     -> false negative: switch to SubStringScorer (no LLM judge needed).")
+        print(f"  3. If all responses were genuine refusals -> genuine failure.")
+        print(f"     -> try more turns, rephrase the objective, or add converters.")
+    else:
+        print(f"\\n{YL}  Tip: Confirm the last response above is a real success")
+        print(f"  (not a vague answer). False positives can occur with LLM judges.{R}")
     print(f"{CY}{SEP}{R}")
 
 `;
@@ -4331,15 +4346,15 @@ ${bruteConverterApplyBlock}            message = Message.from_prompt(prompt=conv
     
     # Execute attack
     print(f"\\nObjective: {OBJECTIVE}")
-    print("\\nStarting Crescendo attack - this escalates gradually and can take a few minutes...")
-    print("\\033[93mAttack in progress, per-turn results will display when complete...\\033[0m", flush=True)
+    print("\\nStarting Crescendo attack - escalates gradually, live output below...\\n")
     
-    result = await attack.execute_async(objective=OBJECTIVE)
+    result = await run_with_live_output(attack, OBJECTIVE)
     await print_verbose_results(result, OBJECTIVE)
     return result
 
 `;
-                    } else if (multiTurnStrategy === 'tap' || multiTurnStrategy === 'pair') { = document.getElementById('treeWidth').value || '4';
+                    } else if (multiTurnStrategy === 'tap' || multiTurnStrategy === 'pair') {
+                        const treeWidth = document.getElementById('treeWidth').value || '4';
                         const treeDepth = document.getElementById('treeDepth').value || '5';
                         const onTopic = document.getElementById('onTopicChecking')?.checked ? 'True' : 'False';
                         const stratComment = multiTurnStrategy === 'pair'
@@ -4362,10 +4377,9 @@ ${multiTurnStrategy === 'tap' ? `        on_topic_checking_enabled=${onTopic},\n
     
     # Execute attack
     print(f"\\nObjective: {OBJECTIVE}")
-    print("\\nStarting ${multiTurnStrategy.toUpperCase()} attack - explores multiple prompt branches, this can take a while...")
-    print("\\033[93mAttack in progress, per-turn results will display when complete...\\033[0m", flush=True)
+    print("\\nStarting ${multiTurnStrategy.toUpperCase()} attack - live output below...\\n")
     
-    result = await attack.execute_async(objective=OBJECTIVE)
+    result = await run_with_live_output(attack, OBJECTIVE)
     await print_verbose_results(result, OBJECTIVE)
     return result
 
@@ -4389,10 +4403,9 @@ ${multiTurnStrategy === 'tap' ? `        on_topic_checking_enabled=${onTopic},\n
     # Execute attack
     print(f"\\nObjective: {OBJECTIVE}")
     print(f"Max turns: {MAX_TURNS}")
-    print("\\nStarting Red Teaming attack...")
-    print("\\033[93mAttack in progress, per-turn results will display when complete...\\033[0m", flush=True)
+    print("\\nStarting Red Teaming attack - live output below...\\n")
     
-    result = await attack.execute_async(objective=OBJECTIVE)
+    result = await run_with_live_output(attack, OBJECTIVE)
     await print_verbose_results(result, OBJECTIVE)
     return result
 
