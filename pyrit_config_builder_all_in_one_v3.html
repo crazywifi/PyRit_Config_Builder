@@ -3800,11 +3800,21 @@ def get_scorer():
 # ============================================
 async def print_verbose_results(result, objective: str) -> None:
     from pyrit.models.results.attack_result import ConversationType
+    # ANSI color codes — work in Windows Terminal and modern PowerShell
+    R  = "\\033[0m"    # reset
+    B  = "\\033[1m"    # bold
+    CY = "\\033[1;96m" # cyan bold  — section headers
+    YL = "\\033[93m"   # yellow     — "Sending to X" labels
+    BL = "\\033[94m"   # blue       — attacker LLM content
+    GR = "\\033[1;92m" # green bold — success / target response label
+    RD = "\\033[1;91m" # red bold   — failure
+    DM = "\\033[2m"    # dim        — dividers / rationale
+    WH = "\\033[97m"   # white      — response content
     SEP = "=" * 60
     DIV = "-" * 40
-    print(f"\\n{SEP}")
-    print(f"OBJECTIVE: {objective}")
-    print(SEP)
+    print(f"\\n{CY}{SEP}{R}")
+    print(f"{CY}{B}  OBJECTIVE:{R} {objective}")
+    print(f"{CY}{SEP}{R}")
     try:
         memory = CentralMemory.get_memory_instance()
         target_pieces = sorted(
@@ -3822,56 +3832,66 @@ async def print_verbose_results(result, objective: str) -> None:
         )
         system_piece = next((p for p in adv_pieces if p.role == "system"), None)
         if system_piece:
-            print(f"\\nSYSTEM (Attacker LLM instructions):")
-            print(DIV)
-            print(system_piece.original_value)
-            print(DIV)
-        turn_seqs = sorted(set(p.sequence for p in target_pieces if p.role in ("user", "assistant")))
-        total = result.executed_turns or len(turn_seqs)
-        for i, seq in enumerate(turn_seqs, 1):
-            print(f"\\n{SEP}")
-            print(f" TURN {i} / {total}")
-            print(SEP)
-            adv_user = next((p for p in adv_pieces if p.sequence == seq and p.role == "user"), None)
-            adv_asst = next((p for p in adv_pieces if p.sequence == seq and p.role == "assistant"), None)
-            tgt_user = next((p for p in target_pieces if p.sequence == seq and p.role == "user"), None)
-            tgt_asst = next((p for p in target_pieces if p.sequence == seq and p.role == "assistant"), None)
+            # Truncate the verbose system prompt — only show first 300 chars
+            preview = system_piece.original_value[:300].replace("\\n", " ").strip()
+            if len(system_piece.original_value) > 300:
+                preview += "..."
+            print(f"\\n{DM}[SYSTEM] Attacker instructions loaded: {preview}{R}")
+        # Build ordered pairs by index, not sequence number (adv seq starts 1 higher due to system msg)
+        def ordered_pairs(pieces):
+            seqs = sorted(set(p.sequence for p in pieces if p.role in ("user", "assistant")))
+            return [(next((p for p in pieces if p.sequence == s and p.role == "user"), None),
+                     next((p for p in pieces if p.sequence == s and p.role == "assistant"), None))
+                    for s in seqs]
+        tgt_turns = ordered_pairs(target_pieces)
+        adv_turns = ordered_pairs(adv_pieces)
+        total = result.executed_turns or max(len(tgt_turns), len(adv_turns))
+        for i, ((tgt_user, tgt_asst), (adv_user, adv_asst)) in enumerate(zip(tgt_turns, adv_turns), 1):
+            print(f"\\n{CY}{SEP}{R}")
+            print(f"{CY}{B}  TURN {i} / {total}{R}")
+            print(f"{CY}{SEP}{R}")
             if adv_user:
-                print(f"\\nSending to Attacker LLM ->")
-                print(DIV)
-                print(adv_user.original_value)
+                print(f"\\n{YL}>>> Sending to Attacker LLM:{R}")
+                print(f"{DM}{DIV}{R}")
+                print(f"{BL}{adv_user.original_value}{R}")
             if adv_asst:
-                print(f"\\nAttacker LLM response (attack prompt):")
-                print(DIV)
-                print(adv_asst.original_value)
-            if tgt_user and tgt_user.converted_value and tgt_user.converted_value != tgt_user.original_value:
-                print(f"\\nSending to Target (after converters) ->")
-                print(DIV)
-                print(tgt_user.converted_value)
-            else:
-                print(f"\\nSending to Target ->")
+                print(f"\\n{YL}<<< Attacker LLM response (attack prompt):{R}")
+                print(f"{DM}{DIV}{R}")
+                print(f"{WH}{B}{adv_asst.original_value}{R}")
+            sent = (tgt_user.converted_value if tgt_user and tgt_user.converted_value
+                    and tgt_user.converted_value != tgt_user.original_value
+                    else (adv_asst.original_value if adv_asst else None))
+            label = ">>> Sending to Target (after converters):" if (tgt_user and tgt_user.converted_value
+                    and tgt_user.converted_value != tgt_user.original_value) else ">>> Sending to Target:"
+            print(f"\\n{YL}{label}{R}")
+            if sent:
+                print(f"{DM}{DIV}{R}")
+                print(f"{WH}{sent}{R}")
             if tgt_asst:
-                print(f"\\nTarget response:")
-                print(DIV)
-                print(tgt_asst.original_value)
-            if result.last_score and i == len(turn_seqs):
+                print(f"\\n{GR}<<< Target response:{R}")
+                print(f"{DM}{DIV}{R}")
+                print(f"{WH}{tgt_asst.original_value}{R}")
+            if result.last_score and i == total:
                 score_val = result.last_score.get_value()
-                print(f"\\nSending to Judge LLM ->")
-                print(f"Judge verdict: {'SUCCESS' if score_val else 'NOT ACHIEVED'}")
+                vc = GR if score_val else RD
+                verdict = "SUCCESS" if score_val else "NOT ACHIEVED"
+                print(f"\\n{YL}>>> Sending to Judge LLM:{R}")
+                print(f"{vc}{B}    Judge verdict: {verdict}{R}")
                 rationale = getattr(result.last_score, "score_rationale", None)
                 if rationale:
-                    print(f"Reason: {rationale}")
+                    print(f"{DM}    Reason: {rationale}{R}")
     except Exception as e:
-        print(f"\\n[Turn-by-turn display unavailable: {e}]")
+        print(f"\\n{RD}[Turn-by-turn display unavailable: {e}]{R}")
         if getattr(result, "last_response", None):
             print(f"Last response: {result.last_response.original_value}")
-    print(f"\\n{SEP}")
+    print(f"\\n{CY}{SEP}{R}")
     outcome = result.outcome.value.upper() if hasattr(result.outcome, "value") else str(result.outcome)
-    print(f"FINAL OUTCOME: {outcome}")
-    print(f"Turns executed: {result.executed_turns}")
+    oc = GR if "SUCCESS" in outcome else RD
+    print(f"{oc}{B}  FINAL OUTCOME: {outcome}{R}")
+    print(f"  Turns executed: {result.executed_turns}")
     if result.outcome_reason:
-        print(f"Reason: {result.outcome_reason}")
-    print(SEP)
+        print(f"{DM}  Reason: {result.outcome_reason}{R}")
+    print(f"{CY}{SEP}{R}")
 
 `;
             }
@@ -4311,15 +4331,15 @@ ${bruteConverterApplyBlock}            message = Message.from_prompt(prompt=conv
     
     # Execute attack
     print(f"\\nObjective: {OBJECTIVE}")
-    print("\\nStarting Crescendo attack - this escalates gradually and can take a few minutes...\\n")
+    print("\\nStarting Crescendo attack - this escalates gradually and can take a few minutes...")
+    print("\\033[93mAttack in progress, per-turn results will display when complete...\\033[0m", flush=True)
     
     result = await attack.execute_async(objective=OBJECTIVE)
     await print_verbose_results(result, OBJECTIVE)
     return result
 
 `;
-                    } else if (multiTurnStrategy === 'tap' || multiTurnStrategy === 'pair') {
-                        const treeWidth = document.getElementById('treeWidth').value || '4';
+                    } else if (multiTurnStrategy === 'tap' || multiTurnStrategy === 'pair') { = document.getElementById('treeWidth').value || '4';
                         const treeDepth = document.getElementById('treeDepth').value || '5';
                         const onTopic = document.getElementById('onTopicChecking')?.checked ? 'True' : 'False';
                         const stratComment = multiTurnStrategy === 'pair'
@@ -4342,7 +4362,8 @@ ${multiTurnStrategy === 'tap' ? `        on_topic_checking_enabled=${onTopic},\n
     
     # Execute attack
     print(f"\\nObjective: {OBJECTIVE}")
-    print("\\nStarting ${multiTurnStrategy.toUpperCase()} attack - explores multiple prompt branches, this can take a while...\\n")
+    print("\\nStarting ${multiTurnStrategy.toUpperCase()} attack - explores multiple prompt branches, this can take a while...")
+    print("\\033[93mAttack in progress, per-turn results will display when complete...\\033[0m", flush=True)
     
     result = await attack.execute_async(objective=OBJECTIVE)
     await print_verbose_results(result, OBJECTIVE)
@@ -4368,7 +4389,8 @@ ${multiTurnStrategy === 'tap' ? `        on_topic_checking_enabled=${onTopic},\n
     # Execute attack
     print(f"\\nObjective: {OBJECTIVE}")
     print(f"Max turns: {MAX_TURNS}")
-    print("\\nStarting attack...\\n")
+    print("\\nStarting Red Teaming attack...")
+    print("\\033[93mAttack in progress, per-turn results will display when complete...\\033[0m", flush=True)
     
     result = await attack.execute_async(objective=OBJECTIVE)
     await print_verbose_results(result, OBJECTIVE)
