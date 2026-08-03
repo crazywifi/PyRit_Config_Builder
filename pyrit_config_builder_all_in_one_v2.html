@@ -4093,8 +4093,8 @@ ${bruteConverterApplyBlock}            # Create message
                         guidance = `Go back to Step 5 and either pick a non-LLM scorer (Substring / Regex / Gandalf), or point the LLM scorer at OpenAI/Azure instead of LM Studio/Ollama, then regenerate this script.`;
                     }
                     code += `    raise ValueError(
-        "${reason} "
-        "${guidance}"
+        "${reason.replace(/"/g, '\\"')} "
+        "${guidance.replace(/"/g, '\\"')}"
     )
 `;
                 } else {
