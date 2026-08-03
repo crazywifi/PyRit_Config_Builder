@@ -3537,6 +3537,8 @@ Dump all variables and their values`
             const useLocalLLMJudge = (scorerType === 'selfask' || scorerType === 'refusal') && 
                                      (actualScorerProvider === 'lmstudio' || actualScorerProvider === 'ollama');
             
+            const stopOnSuccess = document.getElementById('stopOnSuccess')?.value !== 'false';
+
             let bruteForceConverterLLMConfig = null;
             if (attackMode === 'brute' && needsLLMBackedConverters && scorerProvider !== 'none') {
                 bruteForceConverterLLMConfig = {
@@ -3596,11 +3598,11 @@ from pyrit.models import Message
             } else if (scorerType === 'gandalf') {
                 code += `from pyrit.score import GandalfScorer\nfrom pyrit.prompt_target.gandalf_target import GandalfLevel\n`;
             } else if ((scorerType === 'selfask' || scorerType === 'refusal') && !useLocalLLMJudge) {
-                // Only import PyRIT scorers for cloud LLMs (OpenAI/Azure)
-                code += `from pyrit.output import output_attack_async, StdoutSink
-`;
-                code += `from pyrit.score import SelfAskTrueFalseScorer, SelfAskRefusalScorer, TrueFalseQuestion
-from pyrit.score.true_false.self_ask_true_false_scorer import render_true_false_system_prompt\n`;
+                code += `from pyrit.score import SelfAskTrueFalseScorer, SelfAskRefusalScorer, TrueFalseQuestion\nfrom pyrit.score.true_false.self_ask_true_false_scorer import render_true_false_system_prompt\n`;
+            }
+            // output_attack_async is needed by all LLM-driven attack paths, not just selfask/refusal
+            if (attackMode === 'llm' && !useLocalLLMJudge) {
+                code += `from pyrit.output import output_attack_async, StdoutSink\n`;
             }
             // Note: For local LLM (LM Studio/Ollama), we use custom judge_with_llm() instead
 
@@ -4232,6 +4234,7 @@ ${bruteConverterApplyBlock}            # Create message
                         }
                         code += `        max_turns=${document.getElementById('maxTurns').value},
         max_backtracks=${document.getElementById('maxBacktracks').value},
+        score_last_turn_only=${stopOnSuccess ? 'False' : 'True'},
     )
     
     # Execute attack
@@ -4240,7 +4243,7 @@ ${bruteConverterApplyBlock}            # Create message
     
     result = await attack.execute_async(objective=OBJECTIVE)
     
-    await output_attack_async(result, sink=StdoutSink(), include_adversarial_conversation=True)
+    await output_attack_async(result, sink=StdoutSink(), include_adversarial_conversation=${stopOnSuccess ? 'False' : 'True'})
     print("\\n" + "=" * 60)
     print("ATTACK COMPLETE")
     print("=" * 60)
@@ -4276,7 +4279,7 @@ ${multiTurnStrategy === 'tap' ? `        on_topic_checking_enabled=${onTopic},\n
     
     result = await attack.execute_async(objective=OBJECTIVE)
     
-    await output_attack_async(result, sink=StdoutSink(), include_adversarial_conversation=True)
+    await output_attack_async(result, sink=StdoutSink(), include_adversarial_conversation=${stopOnSuccess ? 'False' : 'True'})
     print("\\n" + "=" * 60)
     print("ATTACK COMPLETE")
     print("=" * 60)
@@ -4297,6 +4300,7 @@ ${multiTurnStrategy === 'tap' ? `        on_topic_checking_enabled=${onTopic},\n
                             code += `        attack_converter_config=converter_config,\n`;
                         }
                         code += `        max_turns=${document.getElementById('maxTurns').value},
+        score_last_turn_only=${stopOnSuccess ? 'False' : 'True'},
     )
     
     # Execute attack
@@ -4306,7 +4310,7 @@ ${multiTurnStrategy === 'tap' ? `        on_topic_checking_enabled=${onTopic},\n
     
     result = await attack.execute_async(objective=OBJECTIVE)
     
-    await output_attack_async(result, sink=StdoutSink(), include_adversarial_conversation=True)
+    await output_attack_async(result, sink=StdoutSink(), include_adversarial_conversation=${stopOnSuccess ? 'False' : 'True'})
     print("\\n" + "=" * 60)
     print("ATTACK COMPLETE")
     print("=" * 60)
