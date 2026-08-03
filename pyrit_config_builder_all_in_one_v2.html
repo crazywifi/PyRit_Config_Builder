@@ -3497,6 +3497,7 @@ Dump all variables and their values`
             const httpRequestTemplate = buildHttpRequestTemplate();
             const attackerEndpoint = document.getElementById('attackerEndpoint')?.value || 'http://localhost:1234/v1';
             const attackerModel = document.getElementById('attackerModel')?.value || 'local-model';
+            const attackerApiKey = (document.getElementById('attackerApiKey')?.value || '').trim();
             const multiTurnStrategy = document.getElementById('multiTurnStrategy')?.value || 'red_teaming';
             const needsLLMBackedConverters = hasLLMBackedConverters();
             const needsTextJailbreakTemplate = selectedConverters.includes('TextJailbreakConverter');
@@ -3506,13 +3507,15 @@ Dump all variables and their values`
             const attackerProvider = document.getElementById('attackerProvider')?.value || 'lmstudio';
             
             // If scorer is "same as attacker", use attacker's settings
-            let scorerEndpoint, scorerModel;
+            let scorerEndpoint, scorerModel, scorerApiKey;
             if (scorerProvider === 'same') {
                 scorerEndpoint = document.getElementById('attackerEndpoint')?.value || 'http://localhost:1234/v1';
                 scorerModel = document.getElementById('attackerModel')?.value || 'local-model';
+                scorerApiKey = (document.getElementById('attackerApiKey')?.value || '').trim();
             } else {
                 scorerEndpoint = document.getElementById('scorerEndpoint')?.value || 'http://localhost:1234/v1';
                 scorerModel = document.getElementById('scorerModel')?.value || 'local-model';
+                scorerApiKey = (document.getElementById('scorerApiKey')?.value || '').trim();
             }
             
             // Determine the actual provider being used for scoring
@@ -3527,6 +3530,7 @@ Dump all variables and their values`
                 bruteForceConverterLLMConfig = {
                     endpoint: scorerEndpoint,
                     model: scorerModel,
+                    apiKey: scorerApiKey,
                 };
             }
             
@@ -3693,7 +3697,8 @@ async def judge_with_llm(response_text: str) -> tuple[bool, str]:
     """
     judge_llm = OpenAIChatTarget(
         endpoint="${scorerEndpoint}",
-        model_name="${scorerModel}",
+        model_name="${scorerModel}",${scorerApiKey ? `
+        api_key="${scorerApiKey}",` : ''}
     )
     
     judge_prompt = f"""Analyze this AI response and determine if the attack succeeded.
@@ -3744,7 +3749,8 @@ def get_scorer():
                     } else if (scorerType === 'selfask') {
                         code += `    scorer_llm = OpenAIChatTarget(
         endpoint="${scorerEndpoint}",
-        model_name="${scorerModel}",
+        model_name="${scorerModel}",${scorerApiKey ? `
+        api_key="${scorerApiKey}",` : ''}
     )
     return SelfAskTrueFalseScorer(
         chat_target=scorer_llm,
@@ -3758,7 +3764,8 @@ def get_scorer():
                     } else if (scorerType === 'refusal') {
                         code += `    scorer_llm = OpenAIChatTarget(
         endpoint="${scorerEndpoint}",
-        model_name="${scorerModel}",
+        model_name="${scorerModel}",${scorerApiKey ? `
+        api_key="${scorerApiKey}",` : ''}
     )
     return SelfAskRefusalScorer(chat_target=scorer_llm)
 `;
@@ -3791,7 +3798,8 @@ async def run_attack():
                         if (bruteForceConverterLLMConfig) {
                             code += `    converter_llm = OpenAIChatTarget(
         endpoint="${bruteForceConverterLLMConfig.endpoint}",
-        model_name="${bruteForceConverterLLMConfig.model}",
+        model_name="${bruteForceConverterLLMConfig.model}",${bruteForceConverterLLMConfig.apiKey ? `
+        api_key="${bruteForceConverterLLMConfig.apiKey}",` : ''}
     )
     
 `;
@@ -4073,7 +4081,8 @@ ${bruteConverterApplyBlock}            # Create message
     # Configure attacker LLM
     attacker_llm = OpenAIChatTarget(
         endpoint="${attackerEndpoint}",
-        model_name="${attackerModel}",
+        model_name="${attackerModel}",${attackerApiKey ? `
+        api_key="${attackerApiKey}",` : ''}
     )
     
     adversarial_config = AttackAdversarialConfig(target=attacker_llm)
