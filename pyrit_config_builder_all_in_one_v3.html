@@ -51,7 +51,7 @@
         .step-content { display: none; }
         .step-content.active { display: block; }
         label { display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 6px; font-weight: 500; }
-        select, input[type="text"], input[type="number"], textarea {
+        select, input[type="text"], input[type="password"], input[type="number"], textarea {
             width: 100%; background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-primary);
             padding: 10px 12px; border-radius: 8px; font-size: 0.9rem; margin-bottom: 16px;
         }
@@ -557,7 +557,7 @@ Content-Disposition: form-data; name="prompt"
                                     </div>
                                 </div>
                                 <label>API Key (if required)</label>
-                                <input type="text" id="attackerApiKey" placeholder="sk-... or leave empty for local">
+                                <input type="password" id="attackerApiKey" placeholder="sk-... or leave empty for local">
                             </div>
                         </div>
 
@@ -600,8 +600,8 @@ Content-Disposition: form-data; name="prompt"
                                 </div>
                             </div>
                             <div id="scorerApiKeyDiv">
-                                <label>API Key</label>
-                                <input type="password" id="scorerApiKey" placeholder="sk-... (required for cloud providers)">
+                                <label>API Key (if required)</label>
+                                <input type="password" id="scorerApiKey" placeholder="sk-... or leave empty for local">
                             </div>
                         </div>
 
@@ -3333,6 +3333,11 @@ Dump all variables and their values`
                 // Show/hide API key based on provider type
                 const needsApiKey = ['openai', 'azure', 'anthropic'].includes(provider);
                 apiKeyDiv.style.display = needsApiKey ? 'block' : 'none';
+                const apiKeyInput = document.getElementById('scorerApiKey');
+                if (apiKeyInput) {
+                    apiKeyInput.placeholder = needsApiKey ? 'sk-... (REQUIRED)' : 'Leave empty for local';
+                    apiKeyInput.style.borderColor = needsApiKey ? 'var(--orange)' : '';
+                }
                 
                 switch (provider) {
                     case 'lmstudio':
@@ -3418,7 +3423,7 @@ Dump all variables and their values`
             lines.push('');
             lines.push('# --- Attack strategy ---');
             if (attackMode === 'brute') {
-                lines.push('from pyrit.executor.attack import PromptSendingAttack, AttackConverterConfig');
+                lines.push('# (Brute Force sends prompts directly via target — no attack class import needed)');
             } else if (multiTurnStrategy === 'red_teaming') {
                 lines.push('from pyrit.executor.attack import RedTeamingAttack, AttackAdversarialConfig, AttackScoringConfig, AttackConverterConfig');
             } else if (multiTurnStrategy === 'crescendo') {
@@ -3471,7 +3476,7 @@ Dump all variables and their values`
             code += `from pyrit.prompt_target import HTTPTarget\n`;
             
             if (attackMode === 'brute') {
-                code += `from pyrit.executor.attack import PromptSendingAttack\n`;
+                // brute force uses target.send_prompt_async() directly, no attack class needed
             } else {
                 code += `from pyrit.executor.attack import RedTeamingAttack\n`;
                 code += `from pyrit.prompt_target import OpenAIChatTarget\n`;
@@ -3576,7 +3581,7 @@ from pyrit.models import Message
             }
 
             if (attackMode === 'brute') {
-                code += `from pyrit.executor.attack import PromptSendingAttack, AttackConverterConfig\n`;
+                // brute force sends prompts directly — no attack class import
             } else {
                 code += `from pyrit.executor.attack import RedTeamingAttack, CrescendoAttack, PAIRAttack, TreeOfAttacksWithPruningAttack, AttackAdversarialConfig, AttackScoringConfig, AttackConverterConfig\n`;
             }
