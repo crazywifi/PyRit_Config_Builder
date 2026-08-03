@@ -948,11 +948,22 @@ Content-Disposition: form-data; name="prompt"
                         </div>
 
                         <div id="gandalfConfig" class="hidden">
-                            <label>Expected Password (to verify success)</label>
-                            <input type="text" id="gandalfPassword" placeholder="COCOLOCO">
+                            <label>Gandalf Challenge Level</label>
+                            <select id="gandalfLevel">
+                                <option value="LEVEL_1">Level 1 — baseline</option>
+                                <option value="LEVEL_2">Level 2 — do-not-tell</option>
+                                <option value="LEVEL_3">Level 3 — do-not-tell-and-block</option>
+                                <option value="LEVEL_4">Level 4 — gpt-is-password-encoded</option>
+                                <option value="LEVEL_5">Level 5 — word-blacklist</option>
+                                <option value="LEVEL_6">Level 6 — gpt-blacklist</option>
+                                <option value="LEVEL_7">Level 7 — gandalf</option>
+                                <option value="LEVEL_8">Level 8 — gandalf-the-white</option>
+                                <option value="LEVEL_9">Level 9 — adventure-1</option>
+                                <option value="LEVEL_10">Level 10 — adventure-2</option>
+                            </select>
                             <div class="info-box purple">
                                 <h4>🧙 GandalfScorer</h4>
-                                <p>Built-in scorer specifically for Gandalf challenge. Checks if extracted password matches expected value.</p>
+                                <p>Contacts the Gandalf API to verify if the extracted password is correct for the chosen level. Requires a Scorer LLM (Step 3) to extract the password from responses.</p>
                             </div>
                         </div>
 
@@ -3437,6 +3448,7 @@ Dump all variables and their values`
                 lines.push('from pyrit.score import RegexScorer');
             } else if (scorerType === 'gandalf') {
                 lines.push('from pyrit.score import GandalfScorer');
+                lines.push('from pyrit.prompt_target.gandalf_target import GandalfLevel');
             } else if (scorerType === 'selfask' || scorerType === 'refusal') {
                 if (useLocalLLMJudge) {
                     lines.push('# Local LLM (LM Studio/Ollama) can\'t use PyRIT\'s JSON-mode scorers.');
@@ -3582,9 +3594,11 @@ from pyrit.models import Message
             } else if (scorerType === 'regex') {
                 code += `from pyrit.score import RegexScorer\n`;
             } else if (scorerType === 'gandalf') {
-                code += `from pyrit.score import GandalfScorer\n`;
+                code += `from pyrit.score import GandalfScorer\nfrom pyrit.prompt_target.gandalf_target import GandalfLevel\n`;
             } else if ((scorerType === 'selfask' || scorerType === 'refusal') && !useLocalLLMJudge) {
                 // Only import PyRIT scorers for cloud LLMs (OpenAI/Azure)
+                code += `from pyrit.output import output_attack_async, StdoutSink
+`;
                 code += `from pyrit.score import SelfAskTrueFalseScorer, SelfAskRefusalScorer, TrueFalseQuestion
 from pyrit.score.true_false.self_ask_true_false_scorer import render_true_false_system_prompt\n`;
             }
@@ -3743,10 +3757,10 @@ def get_scorer():
                         code += `    return SubStringScorer(substring="${keyword}")\n`;
                     } else if (scorerType === 'regex') {
                         const pattern = document.getElementById('regexPattern').value;
-                        code += `    return RegexScorer(pattern=r"${pattern}")\n`;
+                        code += `    return RegexScorer(patterns={"match": r"${pattern}"})\n`;
                     } else if (scorerType === 'gandalf') {
-                        const password = document.getElementById('gandalfPassword').value;
-                        code += `    return GandalfScorer(expected_password="${password}")\n`;
+                        const gandalfLevel = document.getElementById('gandalfLevel').value || 'LEVEL_1';
+                        code += `    scorer_llm = OpenAIChatTarget(\n        endpoint="${scorerEndpoint}",\n        model_name="${scorerModel}",${scorerApiKey ? `\n        api_key="${scorerApiKey}",` : ''}\n    )\n    return GandalfScorer(\n        level=GandalfLevel.${gandalfLevel},\n        chat_target=scorer_llm,\n    )\n`;
                     } else if (scorerType === 'selfask') {
                         code += `    scorer_llm = OpenAIChatTarget(
         endpoint="${scorerEndpoint}",
@@ -4121,7 +4135,7 @@ ${bruteConverterApplyBlock}            # Create message
 
                     if (selectedConverters.length > 0) {
                         code += `    # Configure converters
-    converter_config = AttackConverterConfig(request_converters=[get_converters(converter_llm=attacker_llm)])
+    converter_config = AttackConverterConfig(request_converters=get_converters(converter_llm=attacker_llm))
     
 `;
                     }
@@ -4226,6 +4240,7 @@ ${bruteConverterApplyBlock}            # Create message
     
     result = await attack.execute_async(objective=OBJECTIVE)
     
+    await output_attack_async(result, sink=StdoutSink(), include_adversarial_conversation=True)
     print("\\n" + "=" * 60)
     print("ATTACK COMPLETE")
     print("=" * 60)
@@ -4261,6 +4276,7 @@ ${multiTurnStrategy === 'tap' ? `        on_topic_checking_enabled=${onTopic},\n
     
     result = await attack.execute_async(objective=OBJECTIVE)
     
+    await output_attack_async(result, sink=StdoutSink(), include_adversarial_conversation=True)
     print("\\n" + "=" * 60)
     print("ATTACK COMPLETE")
     print("=" * 60)
@@ -4290,6 +4306,7 @@ ${multiTurnStrategy === 'tap' ? `        on_topic_checking_enabled=${onTopic},\n
     
     result = await attack.execute_async(objective=OBJECTIVE)
     
+    await output_attack_async(result, sink=StdoutSink(), include_adversarial_conversation=True)
     print("\\n" + "=" * 60)
     print("ATTACK COMPLETE")
     print("=" * 60)
