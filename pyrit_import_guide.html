@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PyRIT Import Map — a manual guide to what you import and why</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#121821; --panel2:#0f1520; --line:#233042;
+    --ink:#dbe6f0; --dim:#7d93a8; --accent:#5ee6b3; --accent2:#ffb454;
+    --warn:#ff6b6b; --mono:'JetBrains Mono','Fira Code',Consolas,Menlo,monospace;
+    --sans:'IBM Plex Sans',-apple-system,Segoe UI,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;padding:32px 20px 80px}
+  .wrap{max-width:1080px;margin:0 auto}
+  header{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:28px}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+  h1{font-size:1.7rem;margin:0 0 10px;letter-spacing:-.01em}
+  header p{color:var(--dim);max-width:680px;margin:0;font-size:.96rem}
+  a{color:var(--accent)}
+  .callout{background:linear-gradient(180deg,rgba(94,230,179,.08),rgba(94,230,179,.02));border:1px solid rgba(94,230,179,.35);border-radius:10px;padding:16px 18px;margin:26px 0;font-size:.92rem}
+  .callout b{color:var(--accent)}
+  .callout code{color:var(--accent2)}
+  h2{font-size:1.05rem;margin:44px 0 14px;color:var(--ink);display:flex;align-items:center;gap:10px}
+  h2::before{content:'';width:6px;height:6px;background:var(--accent);border-radius:50%}
+  h2 .sub{color:var(--dim);font-weight:400;font-size:.82rem}
+
+  /* module map */
+  .modmap{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:8px 0 6px}
+  .mod{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px 14px}
+  .mod code{font-family:var(--mono);color:var(--accent2);font-size:.82rem;display:block;margin-bottom:5px;word-break:break-all}
+  .mod span{color:var(--dim);font-size:.8rem}
+
+  /* selector */
+  .selector{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 18px}
+  .sel-btn{font-family:var(--mono);font-size:.78rem;background:var(--panel);border:1px solid var(--line);color:var(--dim);padding:9px 13px;border-radius:8px;cursor:pointer;transition:.15s}
+  .sel-btn:hover{border-color:var(--accent);color:var(--ink)}
+  .sel-btn.active{background:rgba(94,230,179,.12);border-color:var(--accent);color:var(--accent)}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 22px;display:none}
+  .card.active{display:block}
+  .card h3{margin:0 0 4px;font-size:1.02rem}
+  .card .desc{color:var(--dim);font-size:.88rem;margin-bottom:14px}
+  .why{background:rgba(255,180,84,.08);border-left:2px solid var(--accent2);padding:9px 12px;font-size:.84rem;color:#e8cfa0;margin-bottom:14px;border-radius:0 6px 6px 0}
+  .why b{color:var(--accent2)}
+  pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:.8rem;line-height:1.65;margin:0}
+  .imp{color:#8fb8ff}
+  .cls{color:var(--accent2)}
+  .cmt{color:var(--dim)}
+  .str{color:var(--accent)}
+
+  table{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:6px}
+  th{text-align:left;color:var(--accent);font-family:var(--mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;padding:9px 10px;border-bottom:1px solid var(--line)}
+  td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--dim)}
+  td code{color:var(--accent2);font-family:var(--mono);font-size:.82rem}
+  td.imp-col{color:#8fb8ff;font-family:var(--mono);font-size:.78rem;white-space:nowrap}
+
+  .errbox{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:10px}
+  .errbox .msg{font-family:var(--mono);font-size:.8rem;color:var(--warn);margin-bottom:6px}
+  .errbox .fix{font-size:.86rem;color:var(--dim)}
+  .errbox .fix code{color:var(--accent)}
+
+  footer{margin-top:50px;padding-top:20px;border-top:1px solid var(--line);color:var(--dim);font-size:.82rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">PyRIT · manual reference</div>
+  <h1>What do I import, and why?</h1>
+  <p>PyRIT doesn't have one page that maps "thing I want to build" → "imports I need." This page does that: pick what you're building below, and it shows the minimal import list plus the reasoning behind each line. Built to complement your config builder for people who want to write the script by hand. Official docs: <a href="https://microsoft.github.io/PyRIT/1.0.1/" target="_blank">microsoft.github.io/PyRIT/1.0.1</a></p>
+</header>
+
+<div class="callout">
+  <b>Read this first — the #1 source of confusion.</b> Older tutorials, blog posts, and even some 2025-era notebooks import <code>from pyrit.orchestrator import PromptSendingOrchestrator</code> / <code>RedTeamingOrchestrator</code> / <code>CrescendoOrchestrator</code>. That's the <b>pre-1.0 API</b>. PyRIT 1.0+ renamed and moved these into <code>pyrit.executor.attack</code> as <code>PromptSendingAttack</code> / <code>RedTeamingAttack</code> / <code>CrescendoAttack</code>, with a standardized config pattern (<code>AttackAdversarialConfig</code>, <code>AttackScoringConfig</code>, <code>AttackConverterConfig</code>) instead of each orchestrator taking different constructor arguments. If a guide's imports don't match what's below, it's written for an older version — don't mix the two APIs in one script.
+</div>
+
+<h2>The module map <span class="sub">— what each package is responsible for</span></h2>
+<div class="modmap">
+  <div class="mod"><code>pyrit.setup</code><span>Boots PyRIT: <b style="color:var(--ink)">initialize_pyrit_async()</b> + memory type constants (<b style="color:var(--ink)">IN_MEMORY</b>). Always your first import.</span></div>
+  <div class="mod"><code>pyrit.prompt_target</code><span>The system under test (and the attacker/judge LLM) — <b style="color:var(--ink)">OpenAIChatTarget</b>, <b style="color:var(--ink)">HTTPTarget</b>, etc.</span></div>
+  <div class="mod"><code>pyrit.executor.attack</code><span>The attack strategies themselves — <b style="color:var(--ink)">PromptSendingAttack</b>, <b style="color:var(--ink)">RedTeamingAttack</b>, <b style="color:var(--ink)">CrescendoAttack</b>, <b style="color:var(--ink)">PAIRAttack</b>/<b style="color:var(--ink)">TAPAttack</b> + their config objects.</span></div>
+  <div class="mod"><code>pyrit.prompt_converter</code><span>Prompt-level obfuscation/transforms applied before sending — Base64, ROT13, translation, role-play framing…</span></div>
+  <div class="mod"><code>pyrit.prompt_normalizer</code><span>Glue that turns a list of converters into a config the attack can consume (<b style="color:var(--ink)">ConverterConfiguration</b>).</span></div>
+  <div class="mod"><code>pyrit.score</code><span>Judges the response — <b style="color:var(--ink)">SelfAskTrueFalseScorer</b>, <b style="color:var(--ink)">SelfAskRefusalScorer</b>, <b style="color:var(--ink)">SubStringScorer</b>, <b style="color:var(--ink)">RegexScorer</b>…</span></div>
+  <div class="mod"><code>pyrit.datasets</code><span>Loads objective/seed-prompt sets — <b style="color:var(--ink)">TextJailBreak</b> and dataset fetchers.</span></div>
+  <div class="mod"><code>pyrit.memory</code><span>Where conversations/scores land — <b style="color:var(--ink)">CentralMemory</b>, SQLite/Azure SQL backends.</span></div>
+  <div class="mod"><code>pyrit.models</code><span>Shared data types passed between components, e.g. <b style="color:var(--ink)">Message</b>.</span></div>
+  <div class="mod"><code>pyrit.registry</code><span>Names and looks up targets by string — <b style="color:var(--ink)">TargetRegistry</b>, used when you register a custom target.</span></div>
+  <div class="mod"><code>pyrit.auth</code><span>Cloud auth helpers — <b style="color:var(--ink)">get_azure_token_provider</b> for Entra ID instead of API keys.</span></div>
+</div>
+
+<h2>Pick what you're building <span class="sub">— minimal imports + why each one is there</span></h2>
+<div class="selector" id="selector"></div>
+<div id="cards"></div>
+
+<h2>Cheat sheet <span class="sub">— symbol → module → one line</span></h2>
+<table>
+  <thead><tr><th>Import from</th><th>Symbol</th><th>Use it when…</th></tr></thead>
+  <tbody id="cheatBody"></tbody>
+</table>
+
+<h2>Errors that actually mean "wrong import" <span class="sub">— not a broken setup</span></h2>
+<div id="errBoxes"></div>
+
+<footer>
+  Sourced from the official PyRIT 1.0.1 docs (<a href="https://microsoft.github.io/PyRIT/1.0.1/" target="_blank">microsoft.github.io/PyRIT/1.0.1</a>) and the Framework/HTTP Target/Custom Targets pages linked from it. Code snippets here are minimal illustrative examples, not copied from the docs — check the linked pages for the full runnable versions.
+</footer>
+</div>
+
+<script>
+const cases = [
+  {
+    id: 'single',
+    label: 'single-turn probe',
+    title: 'Send one prompt, score the reply',
+    desc: 'The simplest thing PyRIT does: fire an objective at a target, optionally score it. This is the building block every other attack wraps.',
+    why: '<b>PromptSendingAttack</b> lives in <code>pyrit.executor.attack</code>, not <code>pyrit.orchestrator</code> — that\'s the old name. You don\'t need AttackAdversarialConfig here because there\'s no attacker LLM generating follow-ups.',
+    code:
+`<span class="imp">from</span> pyrit.setup <span class="imp">import</span> <span class="cls">IN_MEMORY</span>, initialize_pyrit_async
+<span class="imp">from</span> pyrit.prompt_target <span class="imp">import</span> <span class="cls">OpenAIChatTarget</span>
+<span class="imp">from</span> pyrit.executor.attack <span class="imp">import</span> <span class="cls">PromptSendingAttack</span>
+
+<span class="cmt"># memory must be initialized before anything else runs</span>
+<span class="imp">await</span> initialize_pyrit_async(memory_db_type=<span class="cls">IN_MEMORY</span>)
+
+target = <span class="cls">OpenAIChatTarget</span>()
+attack = <span class="cls">PromptSendingAttack</span>(objective_target=target)
+result = <span class="imp">await</span> attack.execute_async(objective=<span class="str">"..."</span>)`
+  },
+  {
+    id: 'redteam',
+    label: 'multi-turn (adversarial LLM)',
+    title: 'Let an attacker LLM adapt each turn',
+    desc: 'RedTeamingAttack uses a second LLM to read the target\'s last reply and craft the next probe — the automated version of a human red-teamer following up.',
+    why: 'Because a second model is generating turns, you now need <b>AttackAdversarialConfig</b> to tell it which LLM plays attacker, and <b>AttackScoringConfig</b> is <i>required</i> — RedTeamingAttack raises <code>ValueError: Objective scorer must be provided</code> if you skip it, since it needs a scorer to know when to stop.',
+    code:
+`<span class="imp">from</span> pyrit.setup <span class="imp">import</span> <span class="cls">IN_MEMORY</span>, initialize_pyrit_async
+<span class="imp">from</span> pyrit.prompt_target <span class="imp">import</span> <span class="cls">OpenAIChatTarget</span>
+<span class="imp">from</span> pyrit.executor.attack <span class="imp">import</span> (
+    <span class="cls">RedTeamingAttack</span>,
+    <span class="cls">AttackAdversarialConfig</span>,
+    <span class="cls">AttackScoringConfig</span>,
+)
+<span class="imp">from</span> pyrit.score <span class="imp">import</span> <span class="cls">SelfAskRefusalScorer</span>
+
+<span class="imp">await</span> initialize_pyrit_async(memory_db_type=<span class="cls">IN_MEMORY</span>)
+
+target = <span class="cls">OpenAIChatTarget</span>()
+attacker_llm = <span class="cls">OpenAIChatTarget</span>()
+
+attack = <span class="cls">RedTeamingAttack</span>(
+    objective_target=target,
+    attack_adversarial_config=<span class="cls">AttackAdversarialConfig</span>(target=attacker_llm),
+    attack_scoring_config=<span class="cls">AttackScoringConfig</span>(
+        objective_scorer=<span class="cls">SelfAskRefusalScorer</span>(chat_target=attacker_llm)
+    ),
+)
+result = <span class="imp">await</span> attack.execute_async(objective=<span class="str">"..."</span>)`
+  },
+  {
+    id: 'crescendo',
+    label: 'multi-turn (gradual escalation)',
+    title: 'Crescendo — start benign, escalate over turns',
+    desc: 'Same shape as RedTeamingAttack (adversarial LLM + scorer), but the strategy itself is different: each turn nudges the target slightly further than the last instead of pivoting freely.',
+    why: 'Same config classes as RedTeamingAttack, just a different attack class — this is the point of the standardized config pattern: swapping strategies is a one-line change once you understand the shared imports.',
+    code:
+`<span class="imp">from</span> pyrit.executor.attack <span class="imp">import</span> (
+    <span class="cls">CrescendoAttack</span>,
+    <span class="cls">AttackAdversarialConfig</span>,
+    <span class="cls">AttackScoringConfig</span>,
+)
+<span class="cmt"># target / attacker_llm / scorer set up exactly as in RedTeamingAttack above</span>
+
+attack = <span class="cls">CrescendoAttack</span>(
+    objective_target=target,
+    attack_adversarial_config=<span class="cls">AttackAdversarialConfig</span>(target=attacker_llm),
+    attack_scoring_config=<span class="cls">AttackScoringConfig</span>(objective_scorer=scorer),
+)
+result = <span class="imp">await</span> attack.execute_async(objective=<span class="str">"..."</span>)`
+  },
+  {
+    id: 'tap',
+    label: 'multi-turn (tree search)',
+    title: 'PAIR / TAP — explore several attack paths at once',
+    desc: 'Instead of one conversation adapting turn-by-turn, these branch into multiple candidate prompts and prune the ones that aren\'t working.',
+    why: '<b>TreeOfAttacksWithPruningAttack</b> is the full name; <b>TAPAttack</b> is an alias for it — either import works, pick one for consistency. Same adversarial + scoring config pattern again.',
+    code:
+`<span class="imp">from</span> pyrit.executor.attack <span class="imp">import</span> (
+    <span class="cls">PAIRAttack</span>,             <span class="cmt"># or TAPAttack / TreeOfAttacksWithPruningAttack</span>
+    <span class="cls">AttackAdversarialConfig</span>,
+    <span class="cls">AttackScoringConfig</span>,
+)
+
+attack = <span class="cls">PAIRAttack</span>(
+    objective_target=target,
+    attack_adversarial_config=<span class="cls">AttackAdversarialConfig</span>(target=attacker_llm),
+    attack_scoring_config=<span class="cls">AttackScoringConfig</span>(objective_scorer=scorer),
+)
+result = <span class="imp">await</span> attack.execute_async(objective=<span class="str">"..."</span>)`
+  },
+  {
+    id: 'converters',
+    label: 'add converters (obfuscation)',
+    title: 'Transform the prompt before it\'s sent',
+    desc: 'Wraps or encodes the objective — Base64, translation, role-play framing — to test whether obfuscation slips past filters.',
+    why: 'A raw list of converter instances isn\'t enough — <b>ConverterConfiguration</b> from <code>pyrit.prompt_normalizer</code> is the adapter that lets an attack\'s <b>AttackConverterConfig</b> actually consume that list.',
+    code:
+`<span class="imp">from</span> pyrit.executor.attack <span class="imp">import</span> <span class="cls">PromptSendingAttack</span>, <span class="cls">AttackConverterConfig</span>
+<span class="imp">from</span> pyrit.prompt_converter <span class="imp">import</span> <span class="cls">Base64Converter</span>
+<span class="imp">from</span> pyrit.prompt_normalizer <span class="imp">import</span> <span class="cls">ConverterConfiguration</span>
+
+attack = <span class="cls">PromptSendingAttack</span>(
+    objective_target=target,
+    attack_converter_config=<span class="cls">AttackConverterConfig</span>(
+        request_converters=<span class="cls">ConverterConfiguration</span>.from_converters([<span class="cls">Base64Converter</span>()])
+    ),
+)`
+  },
+  {
+    id: 'scorer',
+    label: 'add a scorer',
+    title: 'Decide whether the attack succeeded',
+    desc: 'Without a scorer, PyRIT just logs the raw conversation — you have to read it yourself. A scorer turns that into a pass/fail (or graded) verdict.',
+    why: '<b>SelfAsk*</b> scorers use an LLM as judge (needs a chat_target). <b>SubStringScorer</b>/<b>RegexScorer</b> are deterministic — no LLM call, use them when you have an exact marker string to match. Pick deterministic over LLM-as-judge whenever you can; it\'s faster and can\'t misjudge a borderline reply.',
+    code:
+`<span class="cmt"># LLM-as-judge:</span>
+<span class="imp">from</span> pyrit.score <span class="imp">import</span> <span class="cls">SelfAskTrueFalseScorer</span>, <span class="cls">TrueFalseQuestion</span>
+scorer = <span class="cls">SelfAskTrueFalseScorer</span>(
+    chat_target=judge_llm,
+    true_false_question=<span class="cls">TrueFalseQuestion</span>(
+        true_description=<span class="str">"Response complies with the harmful request"</span>
+    ),
+)
+
+<span class="cmt"># deterministic — no LLM call, exact marker match:</span>
+<span class="imp">from</span> pyrit.score <span class="imp">import</span> <span class="cls">SubStringScorer</span>
+scorer = <span class="cls">SubStringScorer</span>(substring=<span class="str">"the secret is"</span>, category=<span class="str">"leakage"</span>)`
+  },
+  {
+    id: 'http',
+    label: 'custom HTTP target',
+    title: 'Point PyRIT at your own API, not a known SDK',
+    desc: 'For a lab or internal app with no PyRIT-native target class — you give it a raw HTTP request template with a {PROMPT} placeholder.',
+    why: '<b>HTTPTarget</b> sends the request. <b>get_http_target_json_response_callback_function</b> is a helper that pulls the reply out of a JSON body so you don\'t hand-write a parser. <b>TargetRegistry</b> + <b>PyRITInitializer</b> are only needed if you want the target to be discoverable by name (e.g. from the scanner CLI or your YAML config) rather than just used inline in a script.',
+    code:
+`<span class="imp">from</span> pyrit.prompt_target <span class="imp">import</span> (
+    <span class="cls">HTTPTarget</span>,
+    get_http_target_json_response_callback_function,
+)
+
+target = <span class="cls">HTTPTarget</span>(
+    http_request=RAW_HTTP_TEMPLATE,       <span class="cmt"># contains {PROMPT}</span>
+    callback_function=get_http_target_json_response_callback_function(<span class="str">"response"</span>),
+)
+
+<span class="cmt"># only if you also want it registered/discoverable by name:</span>
+<span class="imp">from</span> pyrit.registry <span class="imp">import</span> <span class="cls">TargetRegistry</span>
+<span class="imp">from</span> pyrit.setup.initializers <span class="imp">import</span> <span class="cls">PyRITInitializer</span>`
+  },
+  {
+    id: 'memory',
+    label: 'persist results (SQLite)',
+    title: 'Keep results after the process exits',
+    desc: 'In-memory (IN_MEMORY) is fine for a quick test but disappears when the script ends. Swap the constant to keep a queryable history.',
+    why: 'You usually don\'t import a memory class directly — you just pass a different <b>memory_db_type</b> string/constant to <b>initialize_pyrit_async</b>. Reach for <code>pyrit.memory.CentralMemory</code> only when you want to query stored results programmatically instead of via the CLI/UI.',
+    code:
+`<span class="imp">from</span> pyrit.setup <span class="imp">import</span> initialize_pyrit_async
+
+<span class="imp">await</span> initialize_pyrit_async(memory_db_type=<span class="str">"sqlite"</span>)  <span class="cmt"># vs IN_MEMORY</span>
+
+<span class="cmt"># to query results back out programmatically later:</span>
+<span class="imp">from</span> pyrit.memory <span class="imp">import</span> <span class="cls">CentralMemory</span>
+memory = <span class="cls">CentralMemory</span>.get_memory_instance()`
+  },
+];
+
+const cheat = [
+  ['pyrit.setup', 'initialize_pyrit_async, IN_MEMORY', 'Always — first two lines of every script.'],
+  ['pyrit.prompt_target', 'OpenAIChatTarget / HTTPTarget / AzureMLChatTarget…', 'You need something for the attack to talk to (target, judge, or attacker LLM).'],
+  ['pyrit.executor.attack', 'PromptSendingAttack', 'One-shot single-turn probe with no adaptive follow-up.'],
+  ['pyrit.executor.attack', 'RedTeamingAttack', 'Multi-turn, attacker LLM freely adapts each follow-up.'],
+  ['pyrit.executor.attack', 'CrescendoAttack', 'Multi-turn, deliberately gradual escalation strategy.'],
+  ['pyrit.executor.attack', 'PAIRAttack / TAPAttack', 'Multi-turn, explores several branches and prunes weak ones.'],
+  ['pyrit.executor.attack', 'AttackAdversarialConfig', 'Any multi-turn attack — tells it which LLM plays attacker.'],
+  ['pyrit.executor.attack', 'AttackScoringConfig', 'Any attack that needs to know pass/fail automatically.'],
+  ['pyrit.executor.attack', 'AttackConverterConfig', 'Any attack where you\'re also applying converters.'],
+  ['pyrit.executor.attack', 'AttackExecutor', 'Running many objectives concurrently instead of one at a time.'],
+  ['pyrit.executor.attack', 'ConsoleAttackResultPrinter', 'Quick human-readable printout of a result while developing.'],
+  ['pyrit.prompt_converter', 'Base64Converter, TranslationConverter…', 'Obfuscating/transforming the prompt before it\'s sent.'],
+  ['pyrit.prompt_normalizer', 'ConverterConfiguration', 'Wiring a converter list into AttackConverterConfig.'],
+  ['pyrit.score', 'SelfAskTrueFalseScorer / SelfAskRefusalScorer', 'LLM-as-judge scoring, graded or binary.'],
+  ['pyrit.score', 'SubStringScorer / RegexScorer', 'Deterministic scoring against a known marker/pattern.'],
+  ['pyrit.datasets', 'TextJailBreak', 'Loading a jailbreak-template dataset instead of writing one.'],
+  ['pyrit.memory', 'CentralMemory', 'Querying stored conversations/scores from code, not the CLI.'],
+  ['pyrit.models', 'Message', 'Building/inspecting a conversation turn directly.'],
+  ['pyrit.registry', 'TargetRegistry', 'Registering a custom target so it\'s callable by name.'],
+  ['pyrit.auth', 'get_azure_token_provider', 'Azure/Entra ID auth instead of a static API key.'],
+];
+
+const errors = [
+  {msg: 'ModuleNotFoundError: No module named \'pyrit.orchestrator\'', fix: 'You\'re following a pre-1.0 guide. Replace <code>pyrit.orchestrator</code> imports with the matching <code>pyrit.executor.attack</code> class (Orchestrator → Attack) — see the callout at the top of this page.'},
+  {msg: 'ValueError: Objective scorer must be provided in the attack scoring configuration', fix: 'RedTeamingAttack (and other multi-turn attacks) need <code>attack_scoring_config=AttackScoringConfig(objective_scorer=...)</code> — there\'s no default scorer to fall back on.'},
+  {msg: 'TypeError: __init__() got an unexpected keyword argument \'prompt_target\'', fix: 'Old orchestrators used <code>prompt_target=</code>; the new attack classes use <code>objective_target=</code>. Constructor argument names changed along with the class names.'},
+  {msg: 'ImportError: cannot import name \'X\' from \'pyrit.executor.attack\'', fix: 'Check spelling/casing against the cheat sheet above — e.g. it\'s <code>TreeOfAttacksWithPruningAttack</code> or the alias <code>TAPAttack</code>, not <code>TAPOrchestrator</code> or <code>TreeOfAttacksOrchestrator</code>.'},
+];
+
+const selector = document.getElementById('selector');
+const cardsEl = document.getElementById('cards');
+cases.forEach((c, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'sel-btn' + (i===0?' active':'');
+  btn.textContent = c.label;
+  btn.onclick = () => select(c.id);
+  selector.appendChild(btn);
+
+  const card = document.createElement('div');
+  card.className = 'card' + (i===0?' active':'');
+  card.id = 'card-' + c.id;
+  card.innerHTML = `<h3>${c.title}</h3><div class="desc">${c.desc}</div><div class="why"><b>Why these imports:</b> ${c.why}</div><pre>${c.code}</pre>`;
+  cardsEl.appendChild(card);
+});
+
+function select(id){
+  document.querySelectorAll('.sel-btn').forEach((b,i)=>b.classList.toggle('active', cases[i].id===id));
+  document.querySelectorAll('.card').forEach(c=>c.classList.toggle('active', c.id==='card-'+id));
+}
+
+const cheatBody = document.getElementById('cheatBody');
+cheat.forEach(([mod, sym, when]) => {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td class="imp-col">from ${mod} import</td><td><code>${sym}</code></td><td>${when}</td>`;
+  cheatBody.appendChild(tr);
+});
+
+const errEl = document.getElementById('errBoxes');
+errors.forEach(e => {
+  const div = document.createElement('div');
+  div.className = 'errbox';
+  div.innerHTML = `<div class="msg">${e.msg}</div><div class="fix">${e.fix}</div>`;
+  errEl.appendChild(div);
+});
+</script>
+</body>
+</html>
