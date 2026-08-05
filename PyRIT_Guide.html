@@ -402,16 +402,58 @@ footer {
 
 <!-- 3 -->
 <section id="s3">
-  <h2>3. Building blocks (simple mental model)</h2>
-  <p>Think of five pieces:</p>
-  <ol>
-    <li><strong>Target</strong> — where the prompt goes (OpenAI, Azure, or your <code>HTTPTarget</code> lab)</li>
-    <li><strong>Converter</strong> — changes the prompt before send (Base64, leetspeak, jailbreak template, …)</li>
-    <li><strong>Attack / Executor</strong> — the strategy (send once, multi-turn red team, Crescendo, TAP, …)</li>
-    <li><strong>Scorer</strong> — decides if the attack worked (keyword, regex, LLM judge, …)</li>
-    <li><strong>Memory</strong> — stores prompts, replies, scores (in-memory, SQLite, Azure SQL)</li>
-  </ol>
-  <p>A <strong>Scenario</strong> (Scanner world) packages many techniques + datasets + scorers into one named test such as <code>airt.jailbreak</code>.</p>
+  <h2>3. Building blocks</h2>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Component</th><th>Meaning</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Targets</strong></td>
+        <td>The AI system under test (the objective target). Can be a built-in chat endpoint (e.g. OpenAI) or a custom HTTP API registered via an initializer (your lab chatbot, Gandalf-style app, etc.). All attack prompts are sent here.</td>
+      </tr>
+      <tr>
+        <td><strong>Converter</strong></td>
+        <td>Transforms prompts before they reach the target (encoding, obfuscation, paraphrase, etc.). Used to probe filter bypass and robustness. In the scanner, converters are attached to a technique as <code>--techniques &lt;technique&gt;:converter.&lt;name&gt;</code>.</td>
+      </tr>
+      <tr>
+        <td><strong>Memory</strong></td>
+        <td>
+          Where PyRIT stores prompts, responses, and scores for a run.
+          <ul style="margin:8px 0 0 18px">
+            <li><strong>In-memory</strong> — fast, discarded when the server stops.</li>
+            <li><strong>SQLite</strong> — persistent; useful for review, export, and evidence in reports.</li>
+          </ul>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Scenarios</strong></td>
+        <td>Pre-built security assessment packages (e.g. <code>airt.jailbreak</code>, <code>airt.leakage</code>, <code>airt.cyber</code>). Each scenario bundles default datasets, techniques, and scoring goals so you can run a standard test with one command.</td>
+      </tr>
+      <tr>
+        <td><strong>Datasets</strong></td>
+        <td>Collections of seed prompts / objectives the scenario uses (e.g. harm categories, leakage probes, HarmBench). <code>--max-dataset-size</code> limits how many items are drawn per technique.</td>
+      </tr>
+      <tr>
+        <td><strong>Techniques</strong></td>
+        <td>How the attack is delivered (e.g. <code>single_turn</code>, <code>role_play</code>, <code>crescendo</code>, <code>tap</code>, encodings like <code>base64</code>). Selected with <code>--techniques</code>. Some need an attacker LLM (multi-turn); others are single-shot.</td>
+      </tr>
+      <tr>
+        <td><strong>OPENAI_CHAT_ENDPOINT</strong></td>
+        <td>(and related <code>OPENAI_CHAT_MODEL</code> / <code>OPENAI_CHAT_KEY</code>) Endpoint for the scorer / judge (and often helper chat). PyRIT uses this model to decide whether an attack succeeded (e.g. SelfAsk scorers). <strong>Not</strong> the app under test.</td>
+      </tr>
+      <tr>
+        <td><strong>ADVERSARIAL_CHAT_ENDPOINT</strong></td>
+        <td>(and related adversarial model vars) Endpoint for the attacker LLM used by multi-turn techniques (red teaming, TAP, PAIR, crescendo-style, etc.). Generates or refines adversarial prompts. Independent of the objective target.</td>
+      </tr>
+      <tr>
+        <td><strong>Scorer</strong></td>
+        <td>Component that evaluates each response against the scenario objective (success / failure / refusal). Can be keyword/regex-based or LLM-based (via <code>OPENAI_CHAT_*</code>). Success rate in reports means “share of attempts the scorer marked as achieving the objective,” not “percentage of a system compromised.”</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
 </section>
 
 <!-- 4 -->
