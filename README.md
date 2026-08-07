@@ -2,7 +2,7 @@
 
 **URLs:**
 
-**PyRit Builder:** https://crazywifi.github.io/PyRit_Config_Builder/pyrit_config_builder_all_in_one.html / https://crazywifi.github.io/PyRit_Config_Builder/pyrit_config_builder_all_in_one_v2.html
+**PyRit Builder:** https://crazywifi.github.io/PyRit_Config_Builder/pyrit_config_builder_all_in_one.html
 
 **PyRit Guide:** https://crazywifi.github.io/PyRit_Config_Builder/PyRIT_Guide.html
 
