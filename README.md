@@ -10,6 +10,8 @@
 
 **PyRit Scanner Custom Guide:** https://crazywifi.github.io/PyRit_Config_Builder/pyrit_scanner_custom_http_lab_guide.html
 
+**PyRit Import Guide:** https://crazywifi.github.io/PyRit_Config_Builder/pyrit_import_guide.html
+
 ---
 **Universal configuration builder and lab guides for Microsoft [PyRIT](https://microsoft.github.io/PyRIT/) (Python Risk Identification Tool).**
 
